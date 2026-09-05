@@ -139,7 +139,7 @@ with `--store` and back up by exporting instead.
 ## Development
 
 ```bash
-cargo test -p folio-core                     # 96 unit + 20 end-to-end tests
+cargo test -p folio-core                     # 90 unit + 19 end-to-end tests
 python tools/mcp_smoke.py                    # the real stdio MCP protocol
 python tools/seed_demo.py                    # a demo corpus with history
 python tools/watcher_check.py                # watcher latency, against a running app

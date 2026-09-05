@@ -29,7 +29,7 @@ Only `ui/cm-entry.js` needs `npm run build`; the rest of `ui/` is plain files.
 ## Test
 
 ```bash
-cargo test -p folio-core          # 96 unit tests + 20 end-to-end
+cargo test -p folio-core          # 90 unit tests + 19 end-to-end
 ```
 
 `crates/folio-core/tests/end_to_end.rs` is written directly against the
@@ -62,7 +62,15 @@ real agent path, so what you see is what an agent would actually have produced.
 ```bash
 python tools/watcher_check.py     # with the app running: disk change → snapshot latency
 python tools/bridge_failover.py   # the bridge keeps working when the app closes mid-session
+python tools/live_probe.py        # which store is a bridge actually attached to?
 ```
+
+`live_probe.py` exists because of a bug worth remembering: the app and an MCP
+client can end up on *different stores*, and the symptom is silently doing
+nothing. It makes one mutation over MCP and reports which store it landed in,
+and whether the bridge attached to a running app or fell back to headless. Pass
+`--no-store-env` to launch the bridge the way a client configured with a bare
+`folio mcp` really does.
 
 ## Looking at the app
 
@@ -91,6 +99,13 @@ c.execute("INSERT INTO meta(key,value) VALUES('ui.view','review') "
           "ON CONFLICT(key) DO UPDATE SET value=excluded.value")
 c.commit()
 PY
+```
+
+## Other tools
+
+```bash
+powershell -File tools/coldstart.ps1   # launch-to-window latency, sampled
+python tools/make_icons.py             # regenerate the app icons from code
 ```
 
 ## Packaging

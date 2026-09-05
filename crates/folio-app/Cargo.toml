@@ -1,0 +1,23 @@
+[package]
+name = "folio-app"
+description = "Folio: one binary, two personalities — the desktop app, and the MCP bridge agents speak to."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+# `folio.exe` launches the GUI. `folio mcp` runs the stdio MCP bridge that
+# MCP clients spawn per session.
+[[bin]]
+name = "folio"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+folio-core = { path = "../folio-core" }
+tauri = { version = "2", features = [] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util"] }

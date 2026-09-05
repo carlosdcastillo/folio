@@ -1,0 +1,30 @@
+# Normalise line endings in the repository.
+#
+# This project is developed on Windows, so working files are CRLF. Storing them
+# that way makes every diff on another platform look like a whole-file rewrite.
+# Git normalises to LF in the object store and checks out the platform's
+# convention; `* text=auto` is what turns that on.
+* text=auto
+
+# Keep these LF even on Windows: shell scripts and files consumed by tools that
+# choke on carriage returns.
+*.sh    text eol=lf
+*.py    text eol=lf
+
+# PowerShell is happiest with CRLF on Windows.
+*.ps1   text eol=crlf
+
+# Never touch these.
+*.png   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.db    binary
+
+# Vendored, minified third-party libraries and the generated CodeMirror bundle.
+# They are not reviewed line by line, and collapsing them keeps diffs readable.
+ui/lib/**            linguist-vendored
+ui/lib/*.min.js      -diff
+ui/lib/*.min.css     -diff
+ui/lib/codemirror.bundle.js -diff linguist-generated

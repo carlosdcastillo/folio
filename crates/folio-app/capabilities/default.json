@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Folio's window talks to the core through one command; it needs nothing else.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-set-title",
+    "core:webview:allow-internal-toggle-devtools",
+    "core:window:allow-show",
+    "core:window:allow-is-maximized",
+    "core:window:allow-unmaximize",
+    "core:window:allow-maximize"
+  ]
+}

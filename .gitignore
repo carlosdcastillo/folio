@@ -1,0 +1,23 @@
+# Build output
+/target/
+
+# Tauri regenerates these ACL/capability schemas on every build.
+/crates/folio-app/gen/
+
+# The demo corpus and its store, rebuilt by tools/seed_demo.py
+/.demo/
+
+# Frontend tooling
+/ui/node_modules/
+
+# The CodeMirror bundle is deliberately NOT ignored. `cargo build` embeds the
+# ui/ directory at compile time and never runs npm, so a clone that skipped
+# `npm run build` would compile cleanly and then fail at runtime with a dead
+# editor. Committing the bundle makes `cargo build` sufficient on its own.
+
+# Editors and OS noise
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

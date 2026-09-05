@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Folio",
+  "version": "1.0.0",
+  "identifier": "app.folio.desktop",
+  "build": {
+    "frontendDist": "../../ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Folio",
+        "width": 1360,
+        "height": 880,
+        "minWidth": 940,
+        "minHeight": 620,
+        "resizable": true,
+        "center": true,
+        "visible": true,
+        "decorations": false,
+        "dragDropEnabled": false,
+        "shadow": true,
+        "backgroundColor": "#1e1e1e"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: http://asset.localhost blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost"
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/64x64.png",
+      "icons/128x128.png",
+      "icons/icon.ico"
+    ],
+    "copyright": "Copyright (c) 2026 Carlos D. Castillo. MIT licensed.",
+    "category": "DeveloperTool",
+    "shortDescription": "Your agents' markdown, under your control.",
+    "longDescription": "Folio is a local, single-user markdown workshop for the files your agents read and write: documentation, prompts, task lists, and skills. Automatic versioning without git, agent edits that arrive as reviewable proposals, artifact intelligence, and anchored comments agents can read and address.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "license": "MIT"
+  }
+}

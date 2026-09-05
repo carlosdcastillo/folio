@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folio</title>
+    <meta name="color-scheme" content="dark">
+    <script>
+        // Before first paint, so there is no dark/light flash on launch.
+        (function () {
+            var theme = null;
+            try { theme = localStorage.getItem('folio.theme'); } catch (e) { /* private mode */ }
+            theme = theme === 'light' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            document.querySelector('meta[name="color-scheme"]').content = theme;
+        })();
+    </script>
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="lib/nord.min.css" id="hljs-theme">
+    <link rel="stylesheet" href="lib/katex.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Title bar: the window drag region. -->
+        <div class="title-bar" id="title-bar" data-tauri-drag-region>
+            <span class="window-title" id="window-title" data-tauri-drag-region>Folio</span>
+            <div class="window-controls">
+                <button id="window-minimize" title="Minimize" aria-label="Minimize">&#8211;</button>
+                <button id="window-maximize" title="Maximize" aria-label="Maximize">&#9633;</button>
+                <button id="window-close" title="Close" aria-label="Close">&times;</button>
+            </div>
+        </div>
+
+        <!-- Menu bar -->
+        <div class="menu-bar" id="menu-bar">
+            <div class="menu-category">
+                <button class="menu-category-btn">File</button>
+                <div class="menu-dropdown">
+                    <button class="menu-item" data-action="new-doc">New Doc&hellip; <span class="shortcut">Ctrl+N</span></button>
+                    <button class="menu-item" data-action="add-root">Add Root&hellip;</button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="save">Save <span class="shortcut">Ctrl+S</span></button>
+                    <button class="menu-item" data-action="checkpoint">Checkpoint&hellip; <span class="shortcut">Ctrl+K</span></button>
+                    <button class="menu-item" data-action="export-history">Export History&hellip;</button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="preferences">Preferences <span class="shortcut">Ctrl+,</span></button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="exit">Exit</button>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <button class="menu-category-btn">Edit</button>
+                <div class="menu-dropdown">
+                    <button class="menu-item" data-action="undo">Undo <span class="shortcut">Ctrl+Z</span></button>
+                    <button class="menu-item" data-action="redo">Redo <span class="shortcut">Ctrl+Y</span></button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="find">Find <span class="shortcut">Ctrl+F</span></button>
+                    <button class="menu-item" data-action="find-in-corpus">Find in Corpus <span class="shortcut">Ctrl+Shift+F</span></button>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <button class="menu-category-btn">View</button>
+                <div class="menu-dropdown">
+                    <button class="menu-item" data-action="toggle-preview">Toggle Preview <span class="shortcut">Ctrl+P</span></button>
+                    <button class="menu-item" data-action="timeline">Timeline <span class="shortcut">Ctrl+T</span></button>
+                    <button class="menu-item" data-action="today">Today <span class="shortcut">Ctrl+1</span></button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="toggle-theme">Theme <span class="shortcut">Ctrl+Shift+D</span></button>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <button class="menu-category-btn">Review</button>
+                <div class="menu-dropdown">
+                    <button class="menu-item" data-action="review">Review Proposals <span class="shortcut">Ctrl+R</span></button>
+                    <button class="menu-item" data-action="accept-all">Accept All&hellip;</button>
+                    <button class="menu-item" data-action="reject-all">Reject All&hellip;</button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="comments">Comments <span class="shortcut">Ctrl+Shift+C</span></button>
+                    <button class="menu-item" data-action="resolve-comment">Resolve Comment <span class="shortcut">Ctrl+Enter</span></button>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <button class="menu-category-btn">Tools</button>
+                <div class="menu-dropdown">
+                    <button class="menu-item" data-action="mcp-status">MCP Status&hellip;</button>
+                    <button class="menu-item" data-action="validate-all">Validate All Skills <span class="shortcut">Ctrl+Shift+V</span></button>
+                    <button class="menu-item" data-action="render-prompt">Render Prompt&hellip;</button>
+                    <div class="menu-divider"></div>
+                    <button class="menu-item" data-action="reindex">Re-index Corpus</button>
+                </div>
+            </div>
+
+            <div class="menu-category">
+                <button class="menu-category-btn">Help</button>
+                <div class="menu-dropdown">
+                    <button class="menu-item" data-action="about">About</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-body" id="app-body">
+            <!-- Corpus sidebar -->
+            <aside class="tab-bar" id="corpus-sidebar" aria-label="Corpus">
+                <div class="tab-bar-header">
+                    <div class="tab-bar-label">Corpus</div>
+                    <button class="sidebar-hide-toggle" id="sidebar-hide-toggle" type="button"
+                            title="Hide corpus sidebar" aria-label="Hide corpus sidebar"
+                            aria-controls="corpus-sidebar" aria-expanded="true">
+                        <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M15 18l-6-6 6-6"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- The review inbox is pinned above the tree. -->
+                <button class="review-inbox" id="review-inbox" type="button" hidden>
+                    <span class="review-inbox-icon">&#9679;</span>
+                    <span class="review-inbox-label">Review</span>
+                    <span class="review-inbox-count" id="review-inbox-count">0</span>
+                </button>
+
+                <div class="corpus-filter">
+                    <input type="text" id="corpus-filter-input" placeholder="Filter documents&hellip;"
+                           autocomplete="off" spellcheck="false" aria-label="Filter documents">
+                </div>
+
+                <div class="tabs-container" id="corpus-tree"></div>
+
+                <button class="sidebar-add-root" id="sidebar-add-root" type="button">+ Add Root&hellip;</button>
+            </aside>
+
+            <div class="content-column">
+                <!-- Toolbar -->
+                <div class="toolbar" id="toolbar">
+                    <button class="toolbar-btn sidebar-show-toggle" id="sidebar-show-toggle" type="button"
+                            title="Show corpus sidebar" aria-label="Show corpus sidebar"
+                            aria-controls="corpus-sidebar" aria-expanded="false" hidden>
+                        <svg class="sidebar-chevron" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M9 18l6-6-6-6"></path>
+                        </svg>
+                    </button>
+
+                    <div class="toolbar-tab-navigation" aria-label="History navigation">
+                        <button class="toolbar-btn toolbar-nav-btn" id="nav-back" title="Back" aria-label="Back" disabled>
+                            <span class="toolbar-icon">&larr;</span>
+                        </button>
+                        <button class="toolbar-btn toolbar-nav-btn" id="nav-forward" title="Forward" aria-label="Forward" disabled>
+                            <span class="toolbar-icon">&rarr;</span>
+                        </button>
+                    </div>
+
+                    <button class="toolbar-btn" id="toolbar-new-doc" title="New Doc (Ctrl+N)">
+                        <span class="toolbar-icon">+</span>
+                        <span class="toolbar-text">New Doc</span>
+                    </button>
+
+                    <div class="toolbar-separator"></div>
+
+                    <div class="doc-identity" id="doc-identity">
+                        <span class="doc-title" id="doc-title">No document open</span>
+                        <span class="type-chip" id="doc-type-chip" hidden></span>
+                        <span class="doc-facts" id="doc-facts"></span>
+                    </div>
+
+                    <div class="toolbar-spacer"></div>
+
+                    <div class="view-switch" role="tablist" aria-label="View">
+                        <button class="toolbar-btn view-btn active" data-view="doc" title="Document">
+                            <span class="toolbar-icon">&#9998;</span><span class="toolbar-text">Doc</span>
+                        </button>
+                        <button class="toolbar-btn view-btn" data-view="review" title="Review Proposals (Ctrl+R)">
+                            <span class="toolbar-icon">&#8644;</span><span class="toolbar-text">Review</span>
+                            <span class="badge" id="review-badge" hidden>0</span>
+                        </button>
+                        <button class="toolbar-btn view-btn" data-view="today" title="Today (Ctrl+1)">
+                            <span class="toolbar-icon">&#9788;</span><span class="toolbar-text">Today</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="workspace" id="workspace">
+                    <!-- ============================ Document view -->
+                    <section class="view main-content active" id="view-doc">
+                        <div class="find-bar hidden" id="find-bar">
+                            <span class="find-label">Find:</span>
+                            <input type="text" id="find-input" placeholder="Search in document&hellip;" autocomplete="off" spellcheck="false">
+                            <span class="find-count" id="find-count"></span>
+                            <button class="find-btn" id="find-prev" title="Previous match (Shift+Enter)">&uarr;</button>
+                            <button class="find-btn" id="find-next" title="Next match (Enter)">&darr;</button>
+                            <button class="find-close" id="find-close" title="Close (Esc)">&times;</button>
+                        </div>
+
+                        <!-- Selection raises this, the find-bar pattern made contextual. -->
+                        <div class="comment-bubble hidden" id="comment-bubble">
+                            <button class="comment-bubble-btn" id="comment-bubble-btn" type="button">
+                                &#128172; Comment
+                            </button>
+                        </div>
+
+                        <div class="doc-panes" id="doc-panes">
+                            <div class="editor-pane" id="editor-pane">
+                                <div class="findings-strip hidden" id="findings-strip"></div>
+                                <div class="editor-host" id="editor-host"></div>
+                            </div>
+                            <div class="splitter-v" id="pane-splitter" title="Drag to resize"></div>
+                            <div class="preview-pane" id="preview-pane">
+                                <div class="answer" id="preview"></div>
+                            </div>
+                        </div>
+
+                        <div class="splitter" id="drawer-splitter" title="Drag to resize"></div>
+
+                        <div class="drawer" id="drawer">
+                            <div class="drawer-tabs" role="tablist">
+                                <button class="drawer-tab active" data-drawer="timeline" role="tab">Timeline</button>
+                                <button class="drawer-tab" data-drawer="comments" role="tab">
+                                    Comments <span class="badge" id="comments-badge" hidden>0</span>
+                                </button>
+                                <button class="drawer-tab" data-drawer="findings" role="tab">
+                                    Validation <span class="badge" id="findings-badge" hidden>0</span>
+                                </button>
+                                <div class="drawer-tools">
+                                    <button class="find-btn" id="drawer-compare" title="Compare the two selected versions" disabled>Compare</button>
+                                    <button class="find-btn" id="drawer-restore" title="Restore the selected version" disabled>Restore</button>
+                                    <button class="find-close" id="drawer-collapse" title="Collapse drawer">&times;</button>
+                                </div>
+                            </div>
+                            <div class="drawer-body" id="drawer-timeline"></div>
+                            <div class="drawer-body hidden" id="drawer-comments"></div>
+                            <div class="drawer-body hidden" id="drawer-findings"></div>
+                        </div>
+                    </section>
+
+                    <!-- ============================ Review view -->
+                    <section class="view" id="view-review">
+                        <div class="review-body">
+                            <div class="review-files" id="review-files"></div>
+                            <div class="review-detail" id="review-detail"></div>
+                        </div>
+                        <div class="review-footer" id="review-footer">
+                            <span class="review-summary" id="review-summary"></span>
+                            <button class="btn-secondary" id="review-reject-all">Reject All&hellip;</button>
+                            <button class="btn-primary" id="review-accept-all">Accept All</button>
+                        </div>
+                    </section>
+
+                    <!-- ============================ Today view -->
+                    <section class="view" id="view-today">
+                        <div class="today-body" id="today-body"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="status-bar" id="status-bar">
+            <span class="status-connection status-connection--local" id="status-watcher">watcher &#9679;</span>
+            <span id="status-mcp">MCP: none</span>
+            <span class="status-sep">&middot;</span>
+            <span id="status-proposals">proposals: 0</span>
+            <span class="status-sep">&middot;</span>
+            <span id="status-text"></span>
+            <span id="status-cursor"></span>
+            <span id="status-store"></span>
+        </div>
+    </div>
+
+    <!-- ============================ Dialogs -->
+    <div class="dialog-overlay" id="dialog-overlay">
+        <!-- Add root -->
+        <div class="dialog" id="add-root-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Corpus</span>
+                    <h3>Add Root</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="pref-section">
+                    <label>Directory or file
+                        <input type="text" id="add-root-path" placeholder="~/.claude/skills" spellcheck="false">
+                    </label>
+                    <label>Label (optional)
+                        <input type="text" id="add-root-label" placeholder="skills" spellcheck="false">
+                    </label>
+                    <label>Write policy
+                        <select id="add-root-policy">
+                            <option value="auto">Auto &mdash; propose docs, skills and prompts; apply task lists directly</option>
+                            <option value="propose">Propose &mdash; every agent write waits for review</option>
+                            <option value="direct">Direct &mdash; agent writes apply immediately (always versioned)</option>
+                        </select>
+                    </label>
+                    <p class="dialog-hint">Folio never touches anything outside a registered root, and never writes into a
+                       <code>.git</code> directory.</p>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" data-close-dialog>Cancel</button>
+                <button class="btn-primary" id="add-root-confirm">Add Root</button>
+            </div>
+        </div>
+
+        <!-- New doc -->
+        <div class="dialog" id="new-doc-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Corpus</span>
+                    <h3>New Document</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="pref-section">
+                    <label>Root
+                        <select id="new-doc-root"></select>
+                    </label>
+                    <label>Path within the root
+                        <input type="text" id="new-doc-path" placeholder="notes/design.md" spellcheck="false">
+                    </label>
+                    <label>Start from
+                        <select id="new-doc-template">
+                            <option value="doc">Empty document</option>
+                            <option value="skill">Skill (SKILL.md scaffold)</option>
+                            <option value="prompt">Prompt template</option>
+                            <option value="tasks">Task list</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" data-close-dialog>Cancel</button>
+                <button class="btn-primary" id="new-doc-confirm">Create</button>
+            </div>
+        </div>
+
+        <!-- Comment composer -->
+        <div class="dialog" id="comment-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Anchored comment</span>
+                    <h3>Leave a note</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <blockquote class="comment-anchor-preview" id="comment-anchor-preview"></blockquote>
+                <textarea id="comment-body" rows="5" placeholder="What should change, and why?" spellcheck="true"></textarea>
+                <p class="dialog-hint">Connected agents see open comments as work items. They reply in the thread and
+                   address them with proposals; accepting one resolves the thread. The file itself is never touched.</p>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" data-close-dialog>Cancel</button>
+                <button class="btn-primary" id="comment-confirm">Comment</button>
+            </div>
+        </div>
+
+        <!-- Corpus search -->
+        <div class="dialog" id="search-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Corpus</span>
+                    <h3>Find in Corpus</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="search-row">
+                    <input type="text" id="search-query" placeholder="Search the corpus&hellip;" spellcheck="false">
+                    <label class="inline-check"><input type="checkbox" id="search-regex"> Regex</label>
+                    <input type="text" id="search-glob" placeholder="glob, e.g. **/SKILL.md" spellcheck="false">
+                    <button class="btn-primary" id="search-run">Search</button>
+                </div>
+                <div class="search-results" id="search-results"></div>
+            </div>
+            <div class="dialog-footer">
+                <span class="review-summary" id="search-summary"></span>
+                <button class="btn-secondary" data-close-dialog>Close</button>
+            </div>
+        </div>
+
+        <!-- Render prompt -->
+        <div class="dialog" id="render-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Prompt</span>
+                    <h3>Render</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="pref-section" id="render-variables"></div>
+                <pre class="render-output" id="render-output"></pre>
+                <p class="dialog-hint">Folio renders prompts. It does not send them anywhere &mdash; execution lives in
+                   whichever agent you run.</p>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" id="render-copy">Copy</button>
+                <button class="btn-primary" id="render-run">Render</button>
+            </div>
+        </div>
+
+        <!-- MCP status -->
+        <div class="dialog" id="mcp-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Tools</span>
+                    <h3>MCP Status</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body" id="mcp-body"></div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" id="mcp-copy-config">Copy client config</button>
+                <button class="btn-primary" data-close-dialog>Close</button>
+            </div>
+        </div>
+
+        <!-- Validation report -->
+        <div class="dialog" id="validate-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Tools</span>
+                    <h3>Validation Report</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body" id="validate-body"></div>
+            <div class="dialog-footer">
+                <span class="review-summary" id="validate-summary"></span>
+                <button class="btn-primary" data-close-dialog>Close</button>
+            </div>
+        </div>
+
+        <!-- Export history -->
+        <div class="dialog" id="export-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">History</span>
+                    <h3>Export as a patch series</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p class="dialog-hint">Export, don't entangle. This is a <code>git am</code>-compatible series; Folio
+                   never writes into a repository.</p>
+                <pre class="render-output" id="export-output"></pre>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" id="export-copy">Copy</button>
+                <button class="btn-primary" data-close-dialog>Close</button>
+            </div>
+        </div>
+
+        <!-- Preferences -->
+        <div class="dialog" id="prefs-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Folio</span>
+                    <h3>Preferences</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body">
+                <div class="pref-section">
+                    <h4>Appearance</h4>
+                    <label>Theme
+                        <select id="pref-theme">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </label>
+                    <label>Reading font size
+                        <input type="number" id="pref-font-size" min="12" max="24" step="1">
+                    </label>
+                    <label><input type="checkbox" id="pref-preview"> Show preview beside the editor</label>
+                </div>
+
+                <div class="pref-section">
+                    <h4>Roots and write policies</h4>
+                    <div id="pref-roots"></div>
+                    <button class="btn-secondary" id="pref-add-root">Add Root&hellip;</button>
+                </div>
+
+                <div class="pref-section">
+                    <h4>Store</h4>
+                    <div class="pref-facts" id="pref-store"></div>
+                </div>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-primary" data-close-dialog>Done</button>
+            </div>
+        </div>
+
+        <!-- About -->
+        <div class="dialog" id="about-dialog">
+            <div class="dialog-header">
+                <div>
+                    <span class="dialog-eyebrow">Folio</span>
+                    <h3>About</h3>
+                </div>
+                <button class="dialog-close" data-close-dialog>&times;</button>
+            </div>
+            <div class="dialog-body" id="about-body"></div>
+            <div class="dialog-footer">
+                <button class="btn-primary" data-close-dialog>Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message dialog: replaces native alert/confirm/prompt, and stacks above
+         any other open dialog. Native dialogs are banned. -->
+    <div class="dialog-overlay message-dialog-overlay" id="message-dialog-overlay">
+        <div class="dialog" id="message-dialog">
+            <div class="dialog-header">
+                <h3 id="message-dialog-title">Folio</h3>
+            </div>
+            <div class="dialog-body">
+                <p class="message-dialog-text" id="message-dialog-text"></p>
+                <select class="message-dialog-select" id="message-dialog-select"></select>
+                <input type="text" class="message-dialog-input" id="message-dialog-input">
+                <textarea class="message-dialog-textarea" id="message-dialog-textarea" rows="4"></textarea>
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-secondary" id="message-dialog-cancel-btn">Cancel</button>
+                <button class="btn-primary" id="message-dialog-ok-btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loading-text">Loading&hellip;</div>
+    </div>
+
+    <script src="lib/marked.min.js"></script>
+    <script src="lib/highlight.min.js"></script>
+    <script src="lib/purify.min.js"></script>
+    <script src="lib/katex.min.js"></script>
+    <script src="lib/katex-auto-render.min.js"></script>
+    <script src="lib/codemirror.bundle.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/markdown.js"></script>
+    <script src="js/diff.js"></script>
+    <script src="js/views/sidebar.js"></script>
+    <script src="js/views/doc.js"></script>
+    <script src="js/views/review.js"></script>
+    <script src="js/views/today.js"></script>
+    <script src="js/views/prefs.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

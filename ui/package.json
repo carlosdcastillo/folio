@@ -1,0 +1,19 @@
+{
+  "name": "folio-ui",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Folio's frontend. No framework: the look and feel is the requirement, and Alpaca Assist already demonstrates it in vanilla JS. npm exists here only to bundle CodeMirror 6, which ships as ESM.",
+  "scripts": {
+    "build": "esbuild cm-entry.js --bundle --format=iife --global-name=FolioCM --outfile=lib/codemirror.bundle.js --minify --legal-comments=none"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "^6",
+    "@codemirror/lang-markdown": "^6",
+    "@codemirror/language": "^6",
+    "@codemirror/search": "^6",
+    "@codemirror/state": "^6",
+    "@codemirror/view": "^6",
+    "@lezer/highlight": "^1",
+    "esbuild": "^0.25"
+  }
+}

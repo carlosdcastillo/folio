@@ -1,0 +1,38 @@
+[package]
+name = "folio-core"
+description = "Folio's engine: corpus, version store, proposals, comments, diff, artifact intelligence, MCP."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[features]
+default = ["mcp"]
+# The rmcp stdio server. Kept behind a feature so the GUI shell can be built
+# without pulling the MCP stack when only the app is wanted.
+mcp = ["dep:rmcp", "dep:tokio"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+rusqlite = { version = "0.40", features = ["bundled"] }
+sha2 = "0.10"
+similar = "2"
+comrak = { version = "0.54", default-features = false }
+notify = "8"
+notify-debouncer-full = "0.7"
+serde_yaml_ng = "0.10"
+globset = "0.4"
+regex = "1"
+walkdir = "2"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
+rand = "0.10"
+dirs = "6"
+
+rmcp = { version = "3", default-features = false, features = ["server", "transport-io", "macros"], optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "io-std", "macros", "sync", "time"], optional = true }
+
+[dev-dependencies]
+tempfile = "3"

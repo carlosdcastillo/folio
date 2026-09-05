@@ -93,9 +93,20 @@
         }
         pendingSelection = { from: sel.from, to: sel.to, text: sel.text };
         const host = $('view-doc').getBoundingClientRect();
-        bubble.style.left = Math.max(70, sel.coords.left - host.left) + 'px';
-        bubble.style.top = Math.max(28, sel.coords.top - host.top - 6) + 'px';
+
+        // Measure before placing so the centred bubble stays within the view
+        // even when the selection ends against an edge of the editor.
+        bubble.style.visibility = 'hidden';
         bubble.classList.remove('hidden');
+        const bounds = bubble.getBoundingClientRect();
+        const margin = 8;
+        const minLeft = bounds.width / 2 + margin;
+        const maxLeft = host.width - bounds.width / 2 - margin;
+        const minTop = bounds.height + margin;
+        const maxTop = host.height - margin;
+        bubble.style.left = Math.max(minLeft, Math.min(sel.coords.left - host.left, maxLeft)) + 'px';
+        bubble.style.top = Math.max(minTop, Math.min(sel.coords.top - host.top - 6, maxTop)) + 'px';
+        bubble.style.visibility = '';
     }
 
     async function startComment() {

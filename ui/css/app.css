@@ -1104,11 +1104,12 @@ button, input, select, textarea {
 
 .comment-bubble {
     position: absolute;
-    z-index: 210;
+    z-index: 90;
     transform: translate(-50%, -100%);
 }
 
 .comment-bubble.hidden { display: none; }
+body:has(.dialog-overlay.active) .comment-bubble { display: none; }
 
 .comment-bubble-btn {
     padding: 5px 11px;

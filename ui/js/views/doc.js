@@ -86,7 +86,7 @@
 
     function updateCommentBubble(sel) {
         const bubble = $('comment-bubble');
-        if (!sel || sel.empty || !view.path || !sel.coords) {
+        if (!sel || sel.empty || !view.path || !sel.coords || !$('find-bar').classList.contains('hidden')) {
             bubble.classList.add('hidden');
             pendingSelection = null;
             return;
@@ -651,10 +651,12 @@
 
     let findMatches = [];
     let findIndex = -1;
+    let findLength = 0;
 
     function runFind(query) {
         findMatches = [];
         findIndex = -1;
+        findLength = query.length;
         if (!query || !editor) {
             $('find-count').textContent = '';
             return;
@@ -674,7 +676,7 @@
         if (!findMatches.length) return;
         findIndex = (findIndex + direction + findMatches.length) % findMatches.length;
         if (findIndex < 0) findIndex = 0;
-        editor.scrollTo(findMatches[findIndex]);
+        editor.scrollTo(findMatches[findIndex], { focus: false, selectionLength: findLength });
         $('find-count').textContent = (findIndex + 1) + ' of ' + findMatches.length;
     }
 

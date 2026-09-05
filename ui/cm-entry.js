@@ -12,7 +12,7 @@ import {
     highlightSpecialChars, placeholder, Decoration, gutter, GutterMarker,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import { highlightSelectionMatches } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
     syntaxHighlighting, HighlightStyle, bracketMatching,
@@ -237,7 +237,7 @@ export function create(parent, options = {}) {
                 highlightSelectionMatches(),
                 rectangularSelection(),
                 crosshairCursor(),
-                keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...foldKeymap, indentWithTab]),
+                keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
                 // Deliberately no `codeLanguages`: pulling every language grammar into
                 // the bundle costs a megabyte to syntax-highlight fenced code in an
                 // editor that sits beside a live preview which already highlights it.
@@ -312,10 +312,11 @@ export function create(parent, options = {}) {
                 text: range.empty ? '' : view.state.sliceDoc(range.from, range.to),
             };
         },
-        scrollTo(offset) {
+        scrollTo(offset, { focus = true, selectionLength = 0 } = {}) {
             const at = Math.max(0, Math.min(offset, view.state.doc.length));
-            view.dispatch({ selection: { anchor: at }, scrollIntoView: true });
-            view.focus();
+            const head = Math.min(at + selectionLength, view.state.doc.length);
+            view.dispatch({ selection: { anchor: at, head }, scrollIntoView: true });
+            if (focus) view.focus();
         },
         lineOffset(line) {
             const n = Math.max(1, Math.min(line, view.state.doc.lines));

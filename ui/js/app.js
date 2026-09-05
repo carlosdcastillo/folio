@@ -18,6 +18,7 @@
         currentPath: null,
         currentDoc: null,
         dirty: false,
+        openDocs: [],
         view: 'doc',
         theme: 'dark',
         history: [],
@@ -134,6 +135,11 @@
         state.currentPath = doc.path;
         state.currentDoc = doc;
 
+        const openIndex = state.openDocs.findIndex((open) => open.path === doc.path);
+        if (openIndex === -1) state.openDocs.push(doc);
+        else state.openDocs[openIndex] = doc;
+        renderOpenFiles();
+
         $('doc-title').textContent = doc.display;
         $('doc-title').title = doc.path;
         const chip = $('doc-type-chip');
@@ -167,6 +173,41 @@
     function setDirty(dirty) {
         state.dirty = dirty;
         $('doc-title').classList.toggle('dirty', dirty);
+        renderOpenFiles();
+    }
+
+    function renderOpenFiles() {
+        const host = $('open-files');
+        host.innerHTML = '';
+
+        for (const doc of state.openDocs) {
+            const tab = el('button', 'open-file');
+            tab.type = 'button';
+            tab.title = doc.path;
+            tab.setAttribute('aria-label', 'Open ' + doc.display);
+            if (doc.path === state.currentPath) {
+                tab.classList.add('active');
+                tab.setAttribute('aria-current', 'page');
+                if (state.dirty) tab.classList.add('dirty');
+            }
+
+            const icon = el('span', 'open-file-icon doc-icon--' + doc.type, global.UI.typeIcon(doc.type));
+            icon.setAttribute('aria-hidden', 'true');
+            tab.appendChild(icon);
+            tab.appendChild(el('span', 'open-file-name', doc.display));
+            tab.addEventListener('click', () => openDoc(doc.path));
+            host.appendChild(tab);
+        }
+
+        const active = host.querySelector('.open-file.active');
+        if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    function cycleOpenDocs(delta) {
+        if (state.openDocs.length < 2) return;
+        const current = state.openDocs.findIndex((doc) => doc.path === state.currentPath);
+        const next = (current + delta + state.openDocs.length) % state.openDocs.length;
+        openDoc(state.openDocs[next].path);
     }
 
     function setCursor(line, column) {
@@ -309,6 +350,12 @@
 
             const key = event.key.toLowerCase();
             const shift = event.shiftKey;
+
+            if (key === 'tab') {
+                event.preventDefault();
+                cycleOpenDocs(shift ? -1 : 1);
+                return;
+            }
 
             const table = {
                 n: 'new-doc',

@@ -244,6 +244,54 @@ button, input, select, textarea {
     box-shadow: inset 0 -2px 0 var(--accent-primary);
 }
 
+.open-files {
+    display: flex;
+    min-height: 34px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    scrollbar-width: thin;
+}
+
+.open-file {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 120px;
+    max-width: 220px;
+    padding: 7px 12px;
+    background: var(--bg-secondary);
+    border: 0;
+    border-right: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.open-file:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.open-file.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+.open-file-icon { flex: 0 0 auto; }
+
+.open-file-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.open-file.dirty .open-file-name::after {
+    content: ' •';
+    color: var(--warning-color);
+}
+
 /* ========================================================================== */
 /* Layout                                                                     */
 /* ========================================================================== */

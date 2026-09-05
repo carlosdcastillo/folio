@@ -21,3 +21,6 @@
 *.swp
 Thumbs.db
 .DS_Store
+
+# Amp orb runtime state
+/.amp/portals/*

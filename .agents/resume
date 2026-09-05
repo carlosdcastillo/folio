@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Folio has no external services or session-scoped authentication to restore.
+echo "Folio orb is ready."

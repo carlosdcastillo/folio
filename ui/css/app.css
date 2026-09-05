@@ -54,6 +54,11 @@ button, input, select, textarea {
     user-select: none;
 }
 
+/* macOS and Linux get the title bar, controls, shadows, resizing and window
+ * gestures from their window manager. Windows retains Folio's compact custom
+ * frame, where the three controls below are actually needed. */
+html:not([data-platform="windows"]) .title-bar { display: none; }
+
 .window-title {
     font-weight: 600;
     font-size: 13px;
@@ -93,6 +98,11 @@ button, input, select, textarea {
     padding: 0 8px;
     background: var(--bg-secondary);
     user-select: none;
+}
+
+html[data-platform="macos"] .menu-bar {
+    padding-left: 6px;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .menu-category { position: relative; }
@@ -1095,6 +1105,12 @@ button, input, select, textarea {
 
 .doc-panes.preview-hidden .preview-pane,
 .doc-panes.preview-hidden .splitter-v { display: none; }
+
+/* A timeline cannot say anything before the first root exists. Giving the
+ * onboarding state the full document area also keeps it useful in short
+ * native windows and under Linux desktop panels. */
+.doc-panes.empty ~ .splitter,
+.doc-panes.empty ~ .drawer { display: none; }
 
 .empty-state {
     display: flex;

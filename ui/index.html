@@ -12,6 +12,9 @@
             try { theme = localStorage.getItem('folio.theme'); } catch (e) { /* private mode */ }
             theme = theme === 'light' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', theme);
+            var platform = /Mac|iPhone|iPad/.test(navigator.platform) ? 'macos'
+                : /Win/.test(navigator.platform) ? 'windows' : 'linux';
+            document.documentElement.setAttribute('data-platform', platform);
             document.querySelector('meta[name="color-scheme"]').content = theme;
         })();
     </script>
@@ -37,51 +40,51 @@
             <div class="menu-category">
                 <button class="menu-category-btn">File</button>
                 <div class="menu-dropdown">
-                    <button class="menu-item" data-action="new-doc">New Doc&hellip; <span class="shortcut">Ctrl+N</span></button>
+                    <button class="menu-item" data-action="new-doc">New Doc&hellip; <span class="shortcut" data-shortcut="Mod+N">Ctrl+N</span></button>
                     <button class="menu-item" data-action="add-root">Add Root&hellip;</button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" data-action="save">Save <span class="shortcut">Ctrl+S</span></button>
-                    <button class="menu-item" data-action="checkpoint">Checkpoint&hellip; <span class="shortcut">Ctrl+K</span></button>
+                    <button class="menu-item" data-action="save">Save <span class="shortcut" data-shortcut="Mod+S">Ctrl+S</span></button>
+                    <button class="menu-item" data-action="checkpoint">Checkpoint&hellip; <span class="shortcut" data-shortcut="Mod+K">Ctrl+K</span></button>
                     <button class="menu-item" data-action="export-history">Export History&hellip;</button>
-                    <button class="menu-item" data-action="close-tab">Close Tab <span class="shortcut">Ctrl+W</span></button>
+                    <button class="menu-item" data-action="close-tab">Close Tab <span class="shortcut" data-shortcut="Mod+W">Ctrl+W</span></button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" data-action="preferences">Preferences <span class="shortcut">Ctrl+,</span></button>
+                    <button class="menu-item" data-action="preferences">Preferences <span class="shortcut" data-shortcut="Mod+,">Ctrl+,</span></button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" data-action="exit">Exit</button>
+                    <button class="menu-item" data-action="exit"><span data-platform-label data-default="Exit" data-macos="Quit Folio">Exit</span> <span class="shortcut" data-shortcut="Mod+Q">Ctrl+Q</span></button>
                 </div>
             </div>
 
             <div class="menu-category">
                 <button class="menu-category-btn">Edit</button>
                 <div class="menu-dropdown">
-                    <button class="menu-item" data-action="undo">Undo <span class="shortcut">Ctrl+Z</span></button>
-                    <button class="menu-item" data-action="redo">Redo <span class="shortcut">Ctrl+Y</span></button>
+                    <button class="menu-item" data-action="undo">Undo <span class="shortcut" data-shortcut="Mod+Z">Ctrl+Z</span></button>
+                    <button class="menu-item" data-action="redo">Redo <span class="shortcut" data-shortcut="Mod+Y" data-shortcut-macos="Mod+Shift+Z">Ctrl+Y</span></button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" data-action="find">Find <span class="shortcut">Ctrl+F</span></button>
-                    <button class="menu-item" data-action="find-in-corpus">Find in Corpus <span class="shortcut">Ctrl+Shift+F</span></button>
+                    <button class="menu-item" data-action="find">Find <span class="shortcut" data-shortcut="Mod+F">Ctrl+F</span></button>
+                    <button class="menu-item" data-action="find-in-corpus">Find in Corpus <span class="shortcut" data-shortcut="Mod+Shift+F">Ctrl+Shift+F</span></button>
                 </div>
             </div>
 
             <div class="menu-category">
                 <button class="menu-category-btn">View</button>
                 <div class="menu-dropdown">
-                    <button class="menu-item" data-action="toggle-preview">Toggle Preview <span class="shortcut">Ctrl+P</span></button>
-                    <button class="menu-item" data-action="timeline">Timeline <span class="shortcut">Ctrl+T</span></button>
-                    <button class="menu-item" data-action="today">Today <span class="shortcut">Ctrl+1</span></button>
+                    <button class="menu-item" data-action="toggle-preview">Toggle Preview <span class="shortcut" data-shortcut="Mod+P">Ctrl+P</span></button>
+                    <button class="menu-item" data-action="timeline">Timeline <span class="shortcut" data-shortcut="Mod+T">Ctrl+T</span></button>
+                    <button class="menu-item" data-action="today">Today <span class="shortcut" data-shortcut="Mod+1">Ctrl+1</span></button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" data-action="toggle-theme">Theme <span class="shortcut">Ctrl+Shift+D</span></button>
+                    <button class="menu-item" data-action="toggle-theme">Theme <span class="shortcut" data-shortcut="Mod+Shift+D">Ctrl+Shift+D</span></button>
                 </div>
             </div>
 
             <div class="menu-category">
                 <button class="menu-category-btn">Review</button>
                 <div class="menu-dropdown">
-                    <button class="menu-item" data-action="review">Review Proposals <span class="shortcut">Ctrl+R</span></button>
+                    <button class="menu-item" data-action="review">Review Proposals <span class="shortcut" data-shortcut="Mod+R">Ctrl+R</span></button>
                     <button class="menu-item" data-action="accept-all">Accept All&hellip;</button>
                     <button class="menu-item" data-action="reject-all">Reject All&hellip;</button>
                     <div class="menu-divider"></div>
-                    <button class="menu-item" data-action="comments">Comments <span class="shortcut">Ctrl+Shift+C</span></button>
-                    <button class="menu-item" data-action="resolve-comment">Resolve Comment <span class="shortcut">Ctrl+Enter</span></button>
+                    <button class="menu-item" data-action="comments">Comments <span class="shortcut" data-shortcut="Mod+Shift+C">Ctrl+Shift+C</span></button>
+                    <button class="menu-item" data-action="resolve-comment">Resolve Comment <span class="shortcut" data-shortcut="Mod+Enter">Ctrl+Enter</span></button>
                 </div>
             </div>
 
@@ -89,7 +92,7 @@
                 <button class="menu-category-btn">Tools</button>
                 <div class="menu-dropdown">
                     <button class="menu-item" data-action="mcp-status">MCP Status&hellip;</button>
-                    <button class="menu-item" data-action="validate-all">Validate All Skills <span class="shortcut">Ctrl+Shift+V</span></button>
+                    <button class="menu-item" data-action="validate-all">Validate All Skills <span class="shortcut" data-shortcut="Mod+Shift+V">Ctrl+Shift+V</span></button>
                     <button class="menu-item" data-action="render-prompt">Render Prompt&hellip;</button>
                     <div class="menu-divider"></div>
                     <button class="menu-item" data-action="reindex">Re-index Corpus</button>
@@ -155,7 +158,7 @@
                         </button>
                     </div>
 
-                    <button class="toolbar-btn" id="toolbar-new-doc" title="New Doc (Ctrl+N)">
+                    <button class="toolbar-btn" id="toolbar-new-doc" title="New Doc (Ctrl+N)" data-shortcut-title="New Doc ({shortcut})" data-shortcut="Mod+N">
                         <span class="toolbar-icon">+</span>
                         <span class="toolbar-text">New Doc</span>
                     </button>
@@ -174,11 +177,11 @@
                         <button class="toolbar-btn view-btn active" data-view="doc" title="Document">
                             <span class="toolbar-icon">&#9998;</span><span class="toolbar-text">Doc</span>
                         </button>
-                        <button class="toolbar-btn view-btn" data-view="review" title="Review Proposals (Ctrl+R)">
+                        <button class="toolbar-btn view-btn" data-view="review" title="Review Proposals (Ctrl+R)" data-shortcut-title="Review Proposals ({shortcut})" data-shortcut="Mod+R">
                             <span class="toolbar-icon">&#8644;</span><span class="toolbar-text">Review</span>
                             <span class="badge" id="review-badge" hidden>0</span>
                         </button>
-                        <button class="toolbar-btn view-btn" data-view="today" title="Today (Ctrl+1)">
+                        <button class="toolbar-btn view-btn" data-view="today" title="Today (Ctrl+1)" data-shortcut-title="Today ({shortcut})" data-shortcut="Mod+1">
                             <span class="toolbar-icon">&#9788;</span><span class="toolbar-text">Today</span>
                         </button>
                     </div>

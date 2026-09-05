@@ -9,6 +9,33 @@
 
     const tauri = global.__TAURI__ || null;
     const invoke = tauri && tauri.core ? tauri.core.invoke : null;
+    let platform = document.documentElement.dataset.platform || 'linux';
+
+    function formatShortcut(value) {
+        const parts = String(value || '').split('+');
+        if (platform === 'macos') {
+            const symbols = { Mod: '⌘', Shift: '⇧', Alt: '⌥', Enter: '↩' };
+            return parts.map((part) => symbols[part] || part.toUpperCase()).join('');
+        }
+        return parts.map((part) => part === 'Mod' ? 'Ctrl' : part).join('+');
+    }
+
+    function applyPlatform(value) {
+        platform = value === 'macos' || value === 'windows' ? value : 'linux';
+        document.documentElement.dataset.platform = platform;
+        for (const node of document.querySelectorAll('[data-shortcut]')) {
+            const shortcut = platform === 'macos' && node.dataset.shortcutMacos
+                ? node.dataset.shortcutMacos : node.dataset.shortcut;
+            if (node.dataset.shortcutTitle) {
+                node.title = node.dataset.shortcutTitle.replace('{shortcut}', formatShortcut(shortcut));
+            } else {
+                node.textContent = formatShortcut(shortcut);
+            }
+        }
+        for (const node of document.querySelectorAll('[data-platform-label]')) {
+            node.textContent = platform === 'macos' ? node.dataset.macos : node.dataset.default;
+        }
+    }
 
     class FolioError extends Error {
         constructor(wire) {
@@ -52,6 +79,9 @@
             return !!invoke;
         },
 
+        shortcut: formatShortcut,
+        applyPlatform,
+
         async call(op, params) {
             if (!invoke) {
                 throw new FolioError({
@@ -78,7 +108,9 @@
 
         async boot() {
             if (!invoke) return { version: 'dev', store_dir: '(no core)', platform: 'web' };
-            return invoke('folio_boot');
+            const facts = await invoke('folio_boot');
+            applyPlatform(facts.platform);
+            return facts;
         },
 
         /** Subscribe to a core event type, or '*' for all of them. */

@@ -404,6 +404,12 @@
                 return;
             }
 
+            if (key === 'enter') {
+                event.preventDefault();
+                runAction('resolve-comment');
+                return;
+            }
+
             const table = {
                 n: 'new-doc',
                 s: 'save',
@@ -415,6 +421,7 @@
                 t: 'timeline',
                 1: 'today',
                 r: 'review',
+                q: 'exit',
                 d: shift ? 'toggle-theme' : null,
                 c: shift ? 'comments' : null,
                 v: shift ? 'validate-all' : null,
@@ -557,6 +564,7 @@
     });
 
     document.addEventListener('DOMContentLoaded', async () => {
+        global.Folio.applyPlatform(document.documentElement.dataset.platform);
         setTheme((function () {
             try { return localStorage.getItem('folio.theme') || 'dark'; } catch (e) { return 'dark'; }
         })(), { persist: false });
@@ -618,7 +626,7 @@
         // where the document would be.
         if (!state.roots.length) {
             const panes = $('doc-panes');
-            panes.classList.add('preview-hidden');
+            panes.classList.add('preview-hidden', 'empty');
             const empty = el('div', 'empty-state');
             empty.innerHTML =
                 '<h2>Point Folio at your markdown</h2>' +

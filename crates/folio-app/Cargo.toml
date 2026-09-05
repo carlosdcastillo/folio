@@ -6,7 +6,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
-# `folio.exe` launches the GUI. `folio mcp` runs the stdio MCP bridge that
+# `folio` launches the GUI. `folio mcp` runs the stdio MCP bridge that
 # MCP clients spawn per session.
 [[bin]]
 name = "folio"

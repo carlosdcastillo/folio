@@ -1,6 +1,6 @@
 //! The private store: a SQLite index beside a content-addressed blob store.
 //!
-//! Layout (Windows default `%LOCALAPPDATA%\Folio`):
+//! Layout (under the platform's local data directory by default):
 //!
 //! ```text
 //! store.db     SQLite (WAL): roots, snapshots, proposals, comments

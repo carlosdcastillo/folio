@@ -4,7 +4,7 @@ The unit and integration tests exercise the core through `dispatch`. This one
 exercises the thing an MCP client actually spawns: the binary, the JSON-RPC
 framing, the tool schemas, and the round trip back.
 
-    python tools/mcp_smoke.py [path-to-folio.exe]
+    python tools/mcp_smoke.py [path-to-folio]
 """
 
 import json
@@ -15,7 +15,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_BIN = os.path.join(ROOT, "target", "debug", "folio.exe")
+DEFAULT_BIN = os.path.join(ROOT, "target", "debug", "folio" + (".exe" if os.name == "nt" else ""))
 
 SKILL_MD = """---
 name: visual-explainer

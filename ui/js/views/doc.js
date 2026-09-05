@@ -40,7 +40,7 @@
         if (editor) return editor;
         editor = global.FolioCM.create($('editor-host'), {
             doc: '',
-            placeholder: 'Open a document from the corpus, or create one with Ctrl+N.',
+            placeholder: 'Open a document from the corpus, or create one with ' + global.Folio.shortcut('Mod+N') + '.',
             on: {
                 change(text) {
                     if (view.suppressChange) return;

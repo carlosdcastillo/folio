@@ -18,7 +18,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEMO = os.path.join(ROOT, ".demo")
 CORPUS = os.path.join(DEMO, "corpus")
 STORE = os.path.join(DEMO, "store")
-BIN = os.path.join(ROOT, "target", "debug", "folio.exe")
+BIN = os.path.join(ROOT, "target", "debug", "folio" + (".exe" if os.name == "nt" else ""))
 
 SKILL_MD = """---
 name: visual-explainer
@@ -129,7 +129,7 @@ honest, because it cannot drift from the UI when both call the same core.
 
 ## One binary, two personalities
 
-`folio.exe` launches the GUI. `folio mcp` runs the stdio MCP bridge that MCP
+`folio` launches the GUI. `folio mcp` runs the stdio MCP bridge that MCP
 clients spawn per session. The bridge prefers a running app and falls back to
 embedding the core headless.
 """

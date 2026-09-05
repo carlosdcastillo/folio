@@ -14,8 +14,13 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.path.join(ROOT, "target", "release", "folio.exe")
+BIN = os.path.join(ROOT, "target", "release", "folio" + (".exe" if os.name == "nt" else ""))
 STORE = os.path.join(ROOT, ".demo", "store")
+
+
+def stop_existing_app():
+    command = ["taskkill", "/F", "/IM", "folio.exe"] if os.name == "nt" else ["pkill", "-x", "folio"]
+    subprocess.run(command, capture_output=True, check=False)
 
 
 class Bridge:
@@ -83,8 +88,7 @@ def main():
     if not os.path.exists(BIN):
         raise SystemExit("not built: " + BIN)
 
-    subprocess.run(["taskkill", "/F", "/IM", "folio.exe"],
-                   capture_output=True, check=False)
+    stop_existing_app()
     time.sleep(0.5)
 
     env = dict(os.environ, FOLIO_STORE=STORE)
@@ -131,8 +135,7 @@ def main():
         print("\nBridge failover works.")
     finally:
         bridge.close()
-        subprocess.run(["taskkill", "/F", "/IM", "folio.exe"],
-                       capture_output=True, check=False)
+        stop_existing_app()
 
 
 if __name__ == "__main__":

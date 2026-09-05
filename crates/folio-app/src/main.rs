@@ -20,7 +20,8 @@ USAGE:
 
 OPTIONS:
     --store <path>           Use a different store directory
-                             (default: %LOCALAPPDATA%\\Folio, or $FOLIO_STORE)
+                             (default: your platform's local data directory,
+                             or $FOLIO_STORE)
     --author <name>          Default author recorded for MCP writes
     -V, --version            Print the version
     -h, --help               Print this help

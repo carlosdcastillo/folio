@@ -50,7 +50,7 @@ cargo build --release -p folio-app
 
 | Flag | Meaning |
 |---|---|
-| `--store <path>` | Use a different store directory (default `%LOCALAPPDATA%\Folio`, or `$FOLIO_STORE`) |
+| `--store <path>` | Use a different store directory (the platform-local data directory, or `$FOLIO_STORE`) |
 | `--author <name>` | Default author recorded for MCP writes, e.g. the model's name |
 
 ---
@@ -112,7 +112,9 @@ See [docs/architecture.md](docs/architecture.md).
 
 ## The store
 
-Windows default `%LOCALAPPDATA%\Folio`:
+The default is `%LOCALAPPDATA%\Folio` on Windows,
+`~/Library/Application Support/Folio` on macOS, and
+`${XDG_DATA_HOME:-~/.local/share}/Folio` on Linux:
 
 ```
 store.db     SQLite (WAL): roots, snapshots, proposals, comments

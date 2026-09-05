@@ -110,8 +110,10 @@ python tools/make_icons.py             # regenerate the app icons from code
 
 ## Packaging
 
-`tauri.conf.json` is configured for an NSIS installer, per-user install. The
-Tauri CLI is not a workspace dependency; install it when you need a bundle:
+`tauri.conf.json` builds the native formats for the current platform (app/DMG
+on macOS and DEB/RPM/AppImage on Linux). Windows overrides this to a per-user
+NSIS installer. The Tauri CLI is not a workspace dependency; install it when
+you need a bundle:
 
 ```bash
 cargo install tauri-cli --version "^2"

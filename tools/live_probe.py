@@ -13,7 +13,7 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BIN = os.path.join(ROOT, "target", "debug", "folio.exe")
+BIN = os.path.join(ROOT, "target", "debug", "folio" + (".exe" if os.name == "nt" else ""))
 DEFAULT_STORE = os.path.join(ROOT, ".demo", "store")
 
 

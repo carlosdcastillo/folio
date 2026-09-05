@@ -9,7 +9,7 @@ import { EditorState, StateEffect, StateField, RangeSetBuilder, Compartment } fr
 import {
     EditorView, keymap, highlightActiveLine, highlightActiveLineGutter,
     lineNumbers, drawSelection, rectangularSelection, crosshairCursor,
-    highlightSpecialChars, placeholder, Decoration, gutter, GutterMarker,
+    highlightSpecialChars, placeholder, Decoration, gutter, GutterMarker, WidgetType,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { highlightSelectionMatches } from '@codemirror/search';
@@ -93,6 +93,13 @@ const folioTheme = EditorView.theme({
         borderBottom: `2px dashed ${v('--text-muted', '#6e6e6e')}`,
         cursor: 'pointer',
     },
+    '.cm-folio-ghost-caret': {
+        display: 'inline-block',
+        height: '1.25em',
+        margin: '0 -1px -0.2em 0',
+        borderLeft: `1px solid ${v('--accent-primary', '#007acc')}`,
+        pointerEvents: 'none',
+    },
 });
 
 // ---------------------------------------------------------------------------
@@ -148,6 +155,37 @@ const anchorField = StateField.define({
                     }));
                 }
                 value = builder.finish();
+            }
+        }
+        return value;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+});
+
+// The preview-originated caret is positional context only. It never changes
+// the editor selection or takes focus from the preview.
+const setGhostCaret = StateEffect.define();
+
+class GhostCaret extends WidgetType {
+    toDOM() {
+        const caret = document.createElement('span');
+        caret.className = 'cm-folio-ghost-caret';
+        caret.setAttribute('aria-hidden', 'true');
+        return caret;
+    }
+}
+
+const ghostCaretField = StateField.define({
+    create: () => Decoration.none,
+    update(value, tr) {
+        value = value.map(tr.changes);
+        for (const effect of tr.effects) {
+            if (effect.is(setGhostCaret)) {
+                if (effect.value === null) return Decoration.none;
+                const at = Math.max(0, Math.min(effect.value, tr.state.doc.length));
+                return Decoration.set([
+                    Decoration.widget({ widget: new GhostCaret(), side: 1 }).range(at),
+                ]);
             }
         }
         return value;
@@ -247,6 +285,7 @@ export function create(parent, options = {}) {
                 EditorView.lineWrapping,
                 frontmatterField,
                 anchorField,
+                ghostCaretField,
                 findingsField,
                 findingsGutter,
                 placeholder(options.placeholder || ''),
@@ -270,6 +309,9 @@ export function create(parent, options = {}) {
                     }
                 }),
                 EditorView.domEventHandlers({
+                    focus() {
+                        view.dispatch({ effects: setGhostCaret.of(null) });
+                    },
                     mousedown(event) {
                         const anchor = event.target.closest?.('[data-comment-id]');
                         if (anchor && listeners.anchorClick) {
@@ -299,6 +341,14 @@ export function create(parent, options = {}) {
         },
         setAnchors(anchors) {
             view.dispatch({ effects: setAnchors.of(anchors || []) });
+        },
+        setGhostCaret(offset) {
+            const at = offset === null
+                ? null
+                : Math.max(0, Math.min(offset, view.state.doc.length));
+            const effects = [setGhostCaret.of(at)];
+            if (at !== null) effects.push(EditorView.scrollIntoView(at, { y: 'center' }));
+            view.dispatch({ effects });
         },
         setFindings(findings) {
             view.dispatch({ effects: setFindings.of(findings || []) });

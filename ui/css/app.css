@@ -1125,6 +1125,24 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
 
 .comment-bubble-btn:hover { background: var(--accent-primary); color: #fff; }
 
+.preview-anchor {
+    border-bottom: 2px solid var(--warning-color);
+    cursor: pointer;
+}
+
+.preview-anchor-outdated {
+    border-bottom: 2px dashed var(--text-muted);
+    cursor: pointer;
+}
+
+.preview-ghost-caret {
+    display: inline-block;
+    height: 1.15em;
+    margin: 0 -1px -0.16em 0;
+    border-left: 1px solid var(--accent-primary);
+    pointer-events: none;
+}
+
 /* -- Drawer ---------------------------------------------------------------- */
 
 .drawer {

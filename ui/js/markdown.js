@@ -37,19 +37,27 @@
 
     function stripFrontmatter(text) {
         const source = String(text || '');
-        if (!source.startsWith('---')) return { body: source, frontmatter: null };
-        const lines = source.split('\n');
-        if (lines[0].trim() !== '---') return { body: source, frontmatter: null };
-        for (let i = 1; i < lines.length; i++) {
-            const trimmed = lines[i].trim();
+        const firstEnd = source.indexOf('\n');
+        const first = source.slice(0, firstEnd < 0 ? source.length : firstEnd).replace(/\r$/, '');
+        if (first.trim() !== '---') return { body: source, frontmatter: null, bodyOffset: 0 };
+
+        let lineStart = firstEnd < 0 ? source.length : firstEnd + 1;
+        while (lineStart < source.length) {
+            const lineEnd = source.indexOf('\n', lineStart);
+            const end = lineEnd < 0 ? source.length : lineEnd;
+            const trimmed = source.slice(lineStart, end).replace(/\r$/, '').trim();
             if (trimmed === '---' || trimmed === '...') {
+                const bodyOffset = lineEnd < 0 ? source.length : lineEnd + 1;
                 return {
-                    frontmatter: lines.slice(1, i).join('\n'),
-                    body: lines.slice(i + 1).join('\n'),
+                    frontmatter: source.slice(firstEnd + 1, lineStart).replace(/\r?\n$/, ''),
+                    body: source.slice(bodyOffset),
+                    bodyOffset,
                 };
             }
+            if (lineEnd < 0) break;
+            lineStart = lineEnd + 1;
         }
-        return { body: source, frontmatter: null };
+        return { body: source, frontmatter: null, bodyOffset: 0 };
     }
 
     /** Frontmatter is metadata; it gets a card, not a horizontal rule. */
@@ -85,6 +93,194 @@
         return DOMPurify.sanitize(html, {
             ADD_ATTR: ['target', 'rel', 'class', 'data-line', 'checked', 'disabled', 'type'],
         });
+    }
+
+    /** Render top-level tokens separately so their exact `raw` ranges survive. */
+    function renderMapped(holder, body, bodyOffset) {
+        if (!hasMarked) {
+            holder.innerHTML = escapeToPre(body);
+            const pre = holder.querySelector('pre');
+            if (pre) setSourceRange(pre, bodyOffset, bodyOffset + body.length);
+            return;
+        }
+
+        const tokens = marked.lexer(body);
+        let cursor = 0;
+        for (const token of tokens) {
+            const raw = token.raw || '';
+            // Marked's block lexer consumes the input in order. Verify that
+            // invariant rather than searching for repeated text and guessing.
+            if (body.slice(cursor, cursor + raw.length) !== raw) {
+                throw new Error('marked token ranges did not consume the source in order');
+            }
+            const start = bodyOffset + cursor;
+            cursor += raw.length;
+            if (token.type === 'space' || token.type === 'def') continue;
+
+            const fragment = document.createElement('template');
+            const one = [token];
+            one.links = tokens.links;
+            fragment.innerHTML = sanitize(marked.parser(one));
+            for (const child of Array.from(fragment.content.children)) {
+                setSourceRange(child, start, start + raw.length);
+            }
+            holder.appendChild(fragment.content);
+        }
+        if (cursor !== body.length) {
+            throw new Error('marked token ranges did not cover the source');
+        }
+    }
+
+    function setSourceRange(element, start, end) {
+        element.dataset.sourceStart = String(start);
+        element.dataset.sourceEnd = String(end);
+    }
+
+    function sourceBlocks(target) {
+        return Array.from(target.querySelectorAll('[data-source-start][data-source-end]'))
+            .map((element) => ({
+                element,
+                start: Number(element.dataset.sourceStart),
+                end: Number(element.dataset.sourceEnd),
+            }))
+            .sort((a, b) => a.start - b.start);
+    }
+
+    function containingBlock(target, node) {
+        const element = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+        const block = element && element.closest('[data-source-start][data-source-end]');
+        return block && target.contains(block) ? block : null;
+    }
+
+    /** Map rendered UTF-16 character boundaries monotonically into raw source. */
+    function characterMap(block, source) {
+        const start = Number(block.dataset.sourceStart);
+        const raw = source.slice(start, Number(block.dataset.sourceEnd));
+        const rendered = textNodes(block).map((node) => node.data).join('');
+        const starts = [];
+        const ends = [];
+        let cursor = 0;
+        for (let i = 0; i < rendered.length; i++) {
+            const at = raw.indexOf(rendered[i], cursor);
+            if (at < 0) return null;
+            starts.push(start + at);
+            ends.push(start + at + 1);
+            cursor = at + 1;
+        }
+        return { rendered, starts, ends };
+    }
+
+    function textOffset(block, node, offset) {
+        let at = 0;
+        for (const text of textNodes(block)) {
+            if (text === node) return at + Math.max(0, Math.min(offset, text.data.length));
+            at += text.data.length;
+        }
+        return null;
+    }
+
+    function mapBoundary(target, node, offset, side) {
+        const block = containingBlock(target, node);
+        if (!block) return null;
+        const map = characterMap(block, target._folioSource || '');
+        const renderedOffset = map && textOffset(block, node, offset);
+        if (!map || renderedOffset === null || renderedOffset > map.rendered.length) return null;
+        let sourceOffset;
+        if (!map.rendered.length) sourceOffset = Number(block.dataset.sourceStart);
+        else if (side === 'end') sourceOffset = renderedOffset ? map.ends[renderedOffset - 1] : map.starts[0];
+        else sourceOffset = renderedOffset < map.rendered.length ? map.starts[renderedOffset] : map.ends.at(-1);
+        return { offset: sourceOffset, block };
+    }
+
+    function mapRange(target, range) {
+        if (!range || range.collapsed || !target.contains(range.commonAncestorContainer)) return null;
+        const start = mapBoundary(target, range.startContainer, range.startOffset, 'start');
+        const end = mapBoundary(target, range.endContainer, range.endOffset, 'end');
+        if (!start || !end || end.offset <= start.offset) return null;
+        return {
+            from: start.offset,
+            to: end.offset,
+            text: (target._folioSource || '').slice(start.offset, end.offset),
+        };
+    }
+
+    function mapPoint(target, x, y) {
+        const caret = document.caretPositionFromPoint
+            ? document.caretPositionFromPoint(x, y)
+            : document.caretRangeFromPoint?.(x, y);
+        if (!caret) return null;
+        const node = caret.offsetNode || caret.startContainer;
+        const offset = caret.offset ?? caret.startOffset;
+        const mapped = mapBoundary(target, node, offset, 'start');
+        return mapped ? mapped.offset : null;
+    }
+
+    function blockForOffset(target, offset) {
+        const blocks = sourceBlocks(target);
+        let low = 0;
+        let high = blocks.length - 1;
+        while (low <= high) {
+            const mid = (low + high) >> 1;
+            const block = blocks[mid];
+            if (offset < block.start) high = mid - 1;
+            else if (offset >= block.end) low = mid + 1;
+            else return block.element;
+        }
+        return null;
+    }
+
+    function textNodes(block) {
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+            // Marked inserts formatting newlines between structural tags. They
+            // are not visible prose and have no corresponding source character.
+            if (/^[\t\r\n ]*$/.test(node.data) && /[\r\n]/.test(node.data)) continue;
+            nodes.push(node);
+        }
+        return nodes;
+    }
+
+    /** Decorate the rendered characters covered by non-overlapping anchors. */
+    function applyAnchors(target, anchors) {
+        const source = target._folioSource || '';
+        const occupied = [];
+        for (const anchor of [...(anchors || [])].sort((a, b) => a.from - b.from)) {
+            if (occupied.some((range) => anchor.from < range.to && anchor.to > range.from)) continue;
+            occupied.push(anchor);
+            for (const block of sourceBlocks(target)) {
+                if (anchor.to <= block.start || anchor.from >= block.end) continue;
+                const map = characterMap(block.element, source);
+                if (!map) continue;
+                let renderedAt = 0;
+                for (const node of textNodes(block.element)) {
+                    const pieces = [];
+                    let pieceStart = null;
+                    for (let i = 0; i < node.data.length; i++) {
+                        const sourceAt = map.starts[renderedAt + i];
+                        const covered = sourceAt >= anchor.from && sourceAt < anchor.to;
+                        if (covered && pieceStart === null) pieceStart = i;
+                        if (!covered && pieceStart !== null) {
+                            pieces.push([pieceStart, i]);
+                            pieceStart = null;
+                        }
+                    }
+                    if (pieceStart !== null) pieces.push([pieceStart, node.data.length]);
+                    renderedAt += node.data.length;
+                    for (const [from, to] of pieces.reverse()) {
+                        const span = document.createElement('span');
+                        span.className = anchor.outdated ? 'preview-anchor-outdated' : 'preview-anchor';
+                        span.dataset.commentId = anchor.id;
+                        span.title = anchor.title || 'Open comment thread';
+                        const range = document.createRange();
+                        range.setStart(node, from);
+                        range.setEnd(node, to);
+                        range.surroundContents(span);
+                    }
+                }
+            }
+        }
     }
 
     /** Wrap `<pre><code>` in the Alpaca Assist code block, with a copy button. */
@@ -146,15 +342,16 @@
                 empty.style.color = 'var(--text-secondary)';
                 empty.textContent = 'This document is empty.';
                 target.appendChild(empty);
+                target._folioSource = source;
                 return;
             }
 
-            const { body, frontmatter } = stripFrontmatter(source);
+            const { body, frontmatter, bodyOffset } = stripFrontmatter(source);
             if (frontmatter && showFrontmatter) target.appendChild(frontmatterCard(frontmatter));
 
             const holder = document.createElement('div');
             try {
-                holder.innerHTML = sanitize(hasMarked ? marked.parse(body) : escapeToPre(body));
+                renderMapped(holder, body, bodyOffset);
             } catch (e) {
                 console.error('folio: markdown render failed', e);
                 holder.innerHTML = escapeToPre(body);
@@ -185,9 +382,14 @@
                 link.setAttribute('target', '_blank');
                 link.setAttribute('rel', 'noopener noreferrer');
             }
+            target._folioSource = source;
         },
 
         stripFrontmatter,
+        mapRange,
+        mapPoint,
+        blockForOffset,
+        applyAnchors,
     };
 
     function escapeToPre(text) {

@@ -14,6 +14,9 @@
     let editor = null;
     let previewTimer = null;
     let validateTimer = null;
+    let caretTimer = null;
+    let trackingSource = null;
+    let editorCaret = 0;
 
     const view = {
         path: null,
@@ -50,6 +53,10 @@
                 },
                 selection(sel) {
                     app.setCursor(sel.line, sel.column);
+                    editor.setGhostCaret(null);
+                    trackingSource = 'editor';
+                    editorCaret = sel.from;
+                    if (sel.empty) schedulePreviewCaret(sel.from);
                     updateCommentBubble(sel);
                 },
                 anchorClick(commentId) {
@@ -65,8 +72,37 @@
         if (!view.previewOn) return;
         clearTimeout(previewTimer);
         previewTimer = setTimeout(() => {
-            global.Markdown.render($('preview'), text);
+            renderPreview(text);
         }, 120);
+    }
+
+    function renderPreview(text) {
+        global.Markdown.render($('preview'), text);
+        applyPreviewAnchors();
+        if (trackingSource === 'editor') schedulePreviewCaret(editorCaret);
+    }
+
+    function schedulePreviewCaret(offset) {
+        clearTimeout(caretTimer);
+        caretTimer = setTimeout(() => placePreviewCaret(offset), 60);
+    }
+
+    function clearPreviewCaret() {
+        $('preview').querySelector('.preview-ghost-caret')?.remove();
+    }
+
+    function placePreviewCaret(offset) {
+        clearPreviewCaret();
+        if (trackingSource !== 'editor') return;
+        const block = global.Markdown.blockForOffset($('preview'), offset);
+        if (!block) return;
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const firstText = walker.nextNode();
+        if (!firstText) return;
+        const caret = el('span', 'preview-ghost-caret');
+        caret.setAttribute('aria-hidden', 'true');
+        firstText.parentNode.insertBefore(caret, firstText);
+        block.scrollIntoView({ block: 'nearest' });
     }
 
     function scheduleValidate() {
@@ -107,6 +143,48 @@
         bubble.style.left = Math.max(minLeft, Math.min(sel.coords.left - host.left, maxLeft)) + 'px';
         bubble.style.top = Math.max(minTop, Math.min(sel.coords.top - host.top - 6, maxTop)) + 'px';
         bubble.style.visibility = '';
+    }
+
+    function previewSelection() {
+        const selection = global.getSelection();
+        if (!selection || selection.rangeCount !== 1 || selection.isCollapsed) return null;
+        if ($('preview')._folioSource !== editor.getValue()) return null;
+        const range = selection.getRangeAt(0);
+        const mapped = global.Markdown.mapRange($('preview'), range);
+        if (!mapped) return null;
+        const bounds = range.getBoundingClientRect();
+        return {
+            ...mapped,
+            empty: false,
+            coords: { left: bounds.left + bounds.width / 2, top: bounds.top },
+        };
+    }
+
+    function handlePreviewSelection() {
+        const selection = global.getSelection();
+        if (!selection || !selection.anchorNode || !$('preview').contains(selection.anchorNode)) return;
+        const mapped = previewSelection();
+        updateCommentBubble(mapped);
+        if (mapped) {
+            trackingSource = 'preview';
+        }
+    }
+
+    function handlePreviewClick(event) {
+        const anchor = event.target.closest?.('[data-comment-id]');
+        if (anchor) {
+            openDrawer('comments');
+            highlightComment(anchor.dataset.commentId);
+            return;
+        }
+        const selection = global.getSelection();
+        if (selection && !selection.isCollapsed && $('preview').contains(selection.anchorNode)) return;
+        updateCommentBubble(null);
+        const offset = global.Markdown.mapPoint($('preview'), event.clientX, event.clientY);
+        if (offset === null) return;
+        trackingSource = 'preview';
+        clearPreviewCaret();
+        editor.setGhostCaret(offset);
     }
 
     async function startComment() {
@@ -173,6 +251,7 @@
             view.doc = doc;
             view.dirty = false;
             view.picked = [];
+            view.comments = [];
             app.setDirty(false);
 
             view.suppressChange = true;
@@ -180,7 +259,7 @@
             editor.setEditable(doc.type !== 'asset');
             view.suppressChange = false;
 
-            global.Markdown.render($('preview'), doc.content);
+            renderPreview(doc.content);
             app.setDocument(doc);
 
             await Promise.all([refreshTimeline(), refreshComments(), refreshValidation()]);
@@ -231,6 +310,26 @@
                 title: c.author + ': ' + c.body.slice(0, 90),
             }));
         editor.setAnchors(anchors);
+        applyPreviewAnchors();
+    }
+
+    function applyPreviewAnchors() {
+        const preview = $('preview');
+        if (!preview._folioSource) return;
+        for (const anchor of preview.querySelectorAll('.preview-anchor, .preview-anchor-outdated')) {
+            anchor.replaceWith(...anchor.childNodes);
+        }
+        if (view.dirty) return;
+        const anchors = view.comments
+            .filter((c) => c.anchor && c.status !== 'resolved')
+            .map((c) => ({
+                id: c.id,
+                from: editor.fromByteOffset(c.anchor.offset),
+                to: editor.fromByteOffset(c.anchor.end),
+                outdated: c.status === 'outdated',
+                title: c.author + ': ' + c.body.slice(0, 90),
+            }));
+        global.Markdown.applyAnchors(preview, anchors);
     }
 
     // -----------------------------------------------------------------------
@@ -652,7 +751,7 @@
     function setPreview(on) {
         view.previewOn = on;
         $('doc-panes').classList.toggle('preview-hidden', !on);
-        if (on && editor) global.Markdown.render($('preview'), editor.getValue());
+        if (on && editor) renderPreview(editor.getValue());
         try { localStorage.setItem('folio.preview', on ? '1' : '0'); } catch (e) { /* ignore */ }
     }
 
@@ -711,6 +810,12 @@
 
             $('comment-bubble-btn').addEventListener('click', startComment);
             $('comment-confirm').addEventListener('click', confirmComment);
+            $('preview').addEventListener('pointerdown', () => {
+                trackingSource = 'preview';
+                clearPreviewCaret();
+            });
+            $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));
+            $('preview').addEventListener('click', handlePreviewClick);
 
             for (const tab of document.querySelectorAll('.drawer-tab')) {
                 tab.addEventListener('click', () => openDrawer(tab.dataset.drawer));

@@ -452,7 +452,8 @@ fn is_skipped_dir(name: &str) -> bool {
     SKIP_DIRS.iter().any(|d| name.eq_ignore_ascii_case(d))
 }
 
-/// Every file inside a root, in a stable order.
+/// Every Markdown file inside a directory root, in a stable order. A file
+/// root is explicit, so it may still track a non-Markdown asset.
 pub fn walk_root(root: &Root) -> Vec<PathBuf> {
     let base = to_fs_path(&root.path);
     if root.kind == RootKind::File {
@@ -475,6 +476,7 @@ pub fn walk_root(root: &Root) -> Vec<PathBuf> {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .map(|e| e.into_path())
+        .filter(|path| is_markdown_path(&path.to_string_lossy()))
         .collect();
     out.sort();
     out
@@ -707,6 +709,37 @@ mod tests {
     #[test]
     fn non_markdown_is_an_asset() {
         assert_eq!(detect_type("C:/x/diagram.png", ""), ArtifactType::Asset);
+    }
+
+    #[test]
+    fn directory_roots_discover_only_markdown_but_file_roots_allow_assets() {
+        let dir = tempfile::tempdir().unwrap();
+        let markdown = dir.path().join("notes.md");
+        let asset = dir.path().join("video.bin");
+        std::fs::write(&markdown, "# Notes\n").unwrap();
+        std::fs::write(&asset, b"asset").unwrap();
+
+        let directory_root = Root {
+            id: "root_dir".into(),
+            path: canonical_key(dir.path()),
+            display: dir.path().display().to_string(),
+            kind: RootKind::Dir,
+            policy: Policy::Auto,
+            label: "directory".into(),
+            added_at: 0,
+        };
+        assert_eq!(walk_root(&directory_root), vec![markdown]);
+
+        let file_root = Root {
+            id: "root_file".into(),
+            path: canonical_key(&asset),
+            display: asset.display().to_string(),
+            kind: RootKind::File,
+            policy: Policy::Auto,
+            label: "asset".into(),
+            added_at: 0,
+        };
+        assert_eq!(walk_root(&file_root), vec![asset]);
     }
 
     #[test]

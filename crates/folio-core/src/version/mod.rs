@@ -232,10 +232,21 @@ pub fn record_from_disk(
     client: Option<&str>,
     message: Option<&str>,
 ) -> Result<RecordOutcome> {
+    // Check the size before reading. Previously an oversized video or archive
+    // could be loaded in full only to be rejected by `record` afterwards.
+    let metadata = std::fs::metadata(&resolved.fs_path)?;
+    if metadata.len() > cfg.max_blob_bytes {
+        return Err(Error::TooLarge(format!(
+            "{} is {} bytes; the per-file limit is {}",
+            resolved.display(),
+            metadata.len(),
+            cfg.max_blob_bytes
+        )));
+    }
     let bytes = std::fs::read(&resolved.fs_path)?;
-    let mtime = std::fs::metadata(&resolved.fs_path)
+    let mtime = metadata
+        .modified()
         .ok()
-        .and_then(|m| m.modified().ok())
         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|d| d.as_millis() as i64);
     record(

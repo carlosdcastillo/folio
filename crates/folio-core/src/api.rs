@@ -114,9 +114,9 @@ impl Folio {
     // Indexing and watching
     // -----------------------------------------------------------------------
 
-    /// Snapshot everything in a root that is not already recorded. Cheap on a
-    /// second run: unchanged files hash to the version already stored and
-    /// write nothing.
+    /// Snapshot every discovered Markdown file in a directory root, or the
+    /// explicitly selected file for a file root, that is not already recorded.
+    /// Unchanged files hash to the version already stored and write nothing.
     pub fn index_root(&self, root: &Root) -> Result<usize> {
         let mut indexed = 0usize;
         for file in corpus::walk_root(root) {

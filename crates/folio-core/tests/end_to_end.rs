@@ -134,6 +134,33 @@ fn the_corpus_indexes_and_types_by_structure() {
 }
 
 #[test]
+fn a_large_directory_indexes_markdown_without_copying_unrelated_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let corpus = dir.path().join("corpus");
+    std::fs::create_dir(&corpus).unwrap();
+    std::fs::write(corpus.join("notes.md"), "# Notes\n").unwrap();
+
+    // A sparse file models a multi-GB video/archive without consuming that
+    // much test disk. Adding the directory must never read or snapshot it.
+    let asset = std::fs::File::create(corpus.join("archive.bin")).unwrap();
+    asset.set_len(2 * 1024 * 1024 * 1024).unwrap();
+
+    let folio = Folio::open(&dir.path().join("store")).unwrap();
+    let result = folio
+        .dispatch(
+            &you(),
+            "add_root",
+            &json!({ "path": corpus.to_string_lossy() }),
+        )
+        .unwrap();
+
+    assert_eq!(result["indexed"], 1);
+    let docs = folio.dispatch(&you(), "list_docs", &json!({})).unwrap();
+    assert_eq!(docs["docs"].as_array().unwrap().len(), 1);
+    assert_eq!(docs["docs"][0]["relative"], "notes.md");
+}
+
+#[test]
 fn a_path_escape_is_rejected() {
     let bed = Bed::new();
     for escape in [

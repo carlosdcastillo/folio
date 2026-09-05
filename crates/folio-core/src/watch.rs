@@ -107,6 +107,15 @@ fn handle_change(folio: &Arc<Folio>, key: &str) {
     // in the corpus is dropped, not recorded.
     let Ok(resolved) = corpus::resolve_within(&roots, key) else { return };
 
+    // Recursive roots are Markdown corpora. Ignore unrelated files without
+    // reading or hashing them; a non-Markdown file root remains explicitly
+    // trackable as an asset.
+    if resolved.root.kind == corpus::RootKind::Dir
+        && !corpus::is_markdown_path(&resolved.path)
+    {
+        return;
+    }
+
     if !resolved.fs_path.exists() {
         folio.bus.emit(Event::DocRemoved {
             display: resolved.display(),

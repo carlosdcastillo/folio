@@ -81,15 +81,17 @@ pub fn run() -> i32 {
                 }
             });
 
-            // Index and start watching off the main thread: a 10k-file root
-            // must not hold up the first paint.
+            // Start watching before the initial index so a file created while
+            // a large root is being walked cannot fall between the two.
+            // Both operations stay off the main thread: a 10k-file root must
+            // not hold up the first paint.
             let background = Arc::clone(&folio);
             std::thread::spawn(move || {
-                if let Err(e) = background.index_all() {
-                    eprintln!("Folio: initial index incomplete: {e}");
-                }
                 if let Err(e) = background.start_watching() {
                     eprintln!("Folio: watcher failed to start: {e}");
+                }
+                if let Err(e) = background.index_all() {
+                    eprintln!("Folio: initial index incomplete: {e}");
                 }
                 background.bus.emit(Event::CorpusChanged);
             });

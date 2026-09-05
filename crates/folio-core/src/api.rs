@@ -180,6 +180,39 @@ impl Folio {
             .unwrap_or(0)
     }
 
+    fn watch_added_root(&self, root: &Root) {
+        let result = self
+            .watcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
+            .map(|watcher| watcher.watch_root(root));
+        if let Some(Err(e)) = result {
+            self.bus.emit(Event::WatcherStatus {
+                watching: self.is_watching(),
+                healthy: false,
+                message: Some(format!("cannot watch {}: {e}", root.display)),
+            });
+        }
+    }
+
+    fn unwatch_removed_root(&self, root: &Root) {
+        let path = crate::util::to_fs_path(&root.path);
+        let result = self
+            .watcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_mut()
+            .map(|watcher| watcher.unwatch_root(&path));
+        if let Some(Err(e)) = result {
+            self.bus.emit(Event::WatcherStatus {
+                watching: self.is_watching(),
+                healthy: false,
+                message: Some(format!("cannot stop watching {}: {e}", root.display)),
+            });
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Documents
     // -----------------------------------------------------------------------
@@ -473,13 +506,16 @@ impl Folio {
             "add_root" => {
                 let policy = p.opt_str("policy").map(|s| Policy::parse(&s)).unwrap_or(Policy::Auto);
                 let root = corpus::add_root(&self.store, &p.req_str("path")?, policy, p.opt_str("label").as_deref())?;
+                self.watch_added_root(&root);
                 let indexed = self.index_root(&root)?;
                 self.bus.emit(Event::CorpusChanged);
                 Ok(json!({ "root": root, "indexed": indexed }))
             }
             "remove_root" => {
                 caller.require_human("remove_root")?;
-                corpus::remove_root(&self.store, &p.req_str("id")?)?;
+                let root = corpus::get_root(&self.store, &p.req_str("id")?)?;
+                corpus::remove_root(&self.store, &root.id)?;
+                self.unwatch_removed_root(&root);
                 self.bus.emit(Event::CorpusChanged);
                 Ok(json!({ "ok": true }))
             }

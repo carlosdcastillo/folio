@@ -15,6 +15,7 @@ use crate::version::{self, Source};
 use notify::RecursiveMode;
 use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, RecommendedCache};
 use std::collections::BTreeSet;
+use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -30,7 +31,7 @@ impl Watcher {
         // here would make the pair immortal.
         let weak: Weak<Folio> = Arc::downgrade(&folio);
 
-        let mut debouncer = new_debouncer(
+        let debouncer = new_debouncer(
             Duration::from_millis(folio.config.watch_debounce_ms),
             None,
             move |result: DebounceEventResult| {
@@ -75,29 +76,48 @@ impl Watcher {
         )
         .map_err(|e| crate::error::Error::other(format!("watcher: {e}")))?;
 
-        let mut watching = 0usize;
+        let mut watcher = Watcher {
+            _debouncer: debouncer,
+            watching: 0,
+        };
         for root in folio.roots()? {
-            let path = crate::util::to_fs_path(&root.path);
-            let mode = match root.kind {
-                corpus::RootKind::Dir => RecursiveMode::Recursive,
-                corpus::RootKind::File => RecursiveMode::NonRecursive,
-            };
             // A single unreadable root must not stop the others being watched.
-            match debouncer.watch(&path, mode) {
-                Ok(()) => watching += 1,
+            match watcher.watch_root(&root) {
+                Ok(()) => {}
                 Err(e) => folio.bus.emit(Event::WatcherStatus {
-                    watching,
+                    watching: watcher.watching,
                     healthy: false,
                     message: Some(format!("cannot watch {}: {e}", root.display)),
                 }),
             }
         }
 
-        Ok(Watcher { _debouncer: debouncer, watching })
+        Ok(watcher)
     }
 
     pub fn watching(&self) -> usize {
         self.watching
+    }
+
+    pub fn watch_root(&mut self, root: &corpus::Root) -> Result<()> {
+        let path = crate::util::to_fs_path(&root.path);
+        let mode = match root.kind {
+            corpus::RootKind::Dir => RecursiveMode::Recursive,
+            corpus::RootKind::File => RecursiveMode::NonRecursive,
+        };
+        self._debouncer
+            .watch(&path, mode)
+            .map_err(|e| crate::error::Error::other(format!("watcher: {e}")))?;
+        self.watching += 1;
+        Ok(())
+    }
+
+    pub fn unwatch_root(&mut self, path: &Path) -> Result<()> {
+        self._debouncer
+            .unwatch(path)
+            .map_err(|e| crate::error::Error::other(format!("watcher: {e}")))?;
+        self.watching = self.watching.saturating_sub(1);
+        Ok(())
     }
 }
 
@@ -151,5 +171,51 @@ fn record(folio: &Arc<Folio>, resolved: &Resolved) {
             healthy: false,
             message: Some(format!("{}: {e}", resolved.display())),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::Caller;
+    use serde_json::json;
+    use std::thread;
+    use std::time::Instant;
+
+    #[test]
+    fn a_root_added_while_watching_tracks_new_top_level_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let corpus = dir.path().join("corpus");
+        std::fs::create_dir(&corpus).unwrap();
+
+        let folio = Folio::open(&dir.path().join("store")).unwrap();
+        folio.start_watching().unwrap();
+        assert_eq!(folio.is_watching(), 0);
+
+        folio
+            .dispatch(
+                &Caller::human(),
+                "add_root",
+                &json!({ "path": corpus.to_string_lossy() }),
+            )
+            .unwrap();
+        assert_eq!(folio.is_watching(), 1);
+
+        std::fs::write(corpus.join("new.md"), "# New\n").unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let docs = folio
+                .dispatch(&Caller::human(), "list_docs", &json!({}))
+                .unwrap();
+            if docs["docs"].as_array().unwrap().len() == 1 {
+                assert_eq!(docs["docs"][0]["relative"], "new.md");
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "new root-level file was not indexed"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
     }
 }

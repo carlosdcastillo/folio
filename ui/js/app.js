@@ -152,7 +152,7 @@
         const suffix = el('span', 'window-title-doc', '  —  ' + doc.display);
         $('window-title').appendChild(suffix);
 
-        for (const action of ['save', 'checkpoint', 'export-history', 'find', 'render-prompt', 'resolve-comment']) {
+        for (const action of ['save', 'close-tab', 'checkpoint', 'export-history', 'find', 'render-prompt', 'resolve-comment']) {
             global.UI.setMenuEnabled(action, true);
         }
         setDocumentFacts(doc.versions, doc.policy);
@@ -176,26 +176,72 @@
         renderOpenFiles();
     }
 
+    async function closeDoc(path) {
+        const index = state.openDocs.findIndex((doc) => doc.path === path);
+        if (index === -1) return;
+
+        const isActive = path === state.currentPath;
+        if (isActive && !(await global.DocView.prepareToClose())) return;
+        state.openDocs.splice(index, 1);
+
+        if (!isActive) {
+            renderOpenFiles();
+            return;
+        }
+
+        const next = state.openDocs[Math.min(index, state.openDocs.length - 1)];
+        if (next) {
+            await openDoc(next.path);
+            return;
+        }
+
+        state.currentPath = null;
+        state.currentDoc = null;
+        state.dirty = false;
+        global.DocView.clear();
+        renderOpenFiles();
+        $('doc-title').textContent = 'No document open';
+        $('doc-title').title = '';
+        $('doc-title').classList.remove('dirty');
+        $('doc-type-chip').hidden = true;
+        $('doc-facts').textContent = '';
+        $('window-title').textContent = 'Folio';
+        global.Folio.window.setTitle('Folio');
+        for (const action of ['save', 'close-tab', 'checkpoint', 'export-history', 'find', 'render-prompt', 'resolve-comment']) {
+            global.UI.setMenuEnabled(action, false);
+        }
+        global.Sidebar.render(state);
+    }
+
     function renderOpenFiles() {
         const host = $('open-files');
         host.innerHTML = '';
 
         for (const doc of state.openDocs) {
-            const tab = el('button', 'open-file');
-            tab.type = 'button';
-            tab.title = doc.path;
-            tab.setAttribute('aria-label', 'Open ' + doc.display);
+            const tab = el('div', 'open-file');
             if (doc.path === state.currentPath) {
                 tab.classList.add('active');
-                tab.setAttribute('aria-current', 'page');
                 if (state.dirty) tab.classList.add('dirty');
             }
 
+            const select = el('button', 'open-file-select');
+            select.type = 'button';
+            select.title = doc.path;
+            select.setAttribute('aria-label', 'Open ' + doc.display);
+            if (doc.path === state.currentPath) select.setAttribute('aria-current', 'page');
             const icon = el('span', 'open-file-icon doc-icon--' + doc.type, global.UI.typeIcon(doc.type));
             icon.setAttribute('aria-hidden', 'true');
-            tab.appendChild(icon);
-            tab.appendChild(el('span', 'open-file-name', doc.display));
-            tab.addEventListener('click', () => openDoc(doc.path));
+            select.appendChild(icon);
+            select.appendChild(el('span', 'open-file-name', doc.display));
+            select.addEventListener('click', () => openDoc(doc.path));
+            tab.appendChild(select);
+
+            const close = el('button', 'open-file-close', '×');
+            close.type = 'button';
+            close.title = 'Close ' + doc.display;
+            close.setAttribute('aria-label', 'Close ' + doc.display);
+            close.addEventListener('click', () => closeDoc(doc.path));
+            tab.appendChild(close);
             host.appendChild(tab);
         }
 
@@ -276,6 +322,7 @@
         'new-doc': () => global.Prefs.openNewDoc(),
         'add-root': () => global.Prefs.openAddRoot(),
         save: () => global.DocView.save(),
+        'close-tab': () => closeDoc(state.currentPath),
         checkpoint: () => global.DocView.checkpoint(),
         'export-history': () => global.DocView.exportHistory(),
         preferences: () => global.Prefs.open(),
@@ -360,6 +407,7 @@
             const table = {
                 n: 'new-doc',
                 s: 'save',
+                w: 'close-tab',
                 k: 'checkpoint',
                 ',': 'preferences',
                 f: shift ? 'find-in-corpus' : 'find',
@@ -517,7 +565,7 @@
         initShortcuts();
         initEvents();
 
-        for (const action of ['save', 'checkpoint', 'export-history', 'render-prompt', 'resolve-comment']) {
+        for (const action of ['save', 'close-tab', 'checkpoint', 'export-history', 'render-prompt', 'resolve-comment']) {
             global.UI.setMenuEnabled(action, false);
         }
 

@@ -268,6 +268,47 @@
         }
     }
 
+    async function prepareToClose() {
+        if (!view.dirty) return true;
+        const saveFirst = await global.UI.confirm(
+            'You have unsaved changes in ' + view.doc.display + '. Save them before closing?',
+            { title: 'Unsaved changes', okLabel: 'Save', cancelLabel: 'Discard' }
+        );
+        if (saveFirst) return save();
+        else {
+            view.dirty = false;
+            app.setDirty(false);
+            return true;
+        }
+    }
+
+    function clear() {
+        clearTimeout(previewTimer);
+        clearTimeout(validateTimer);
+        view.path = null;
+        view.doc = null;
+        view.versions = [];
+        view.comments = [];
+        view.validation = null;
+        view.dirty = false;
+        view.picked = [];
+        pendingSelection = null;
+
+        view.suppressChange = true;
+        editor.setValue('');
+        editor.setEditable(false);
+        view.suppressChange = false;
+        global.Markdown.render($('preview'), '');
+        $('drawer-timeline').innerHTML = '';
+        $('drawer-comments').innerHTML = '';
+        $('drawer-findings').innerHTML = '';
+        $('comments-badge').hidden = true;
+        $('findings-badge').hidden = true;
+        $('findings-strip').classList.add('hidden');
+        $('comment-bubble').classList.add('hidden');
+        showFind(false);
+    }
+
     async function refreshTimeline() {
         if (!view.path) return;
         const result = await global.Folio.tryCall('list_versions', { path: view.path, limit: 300 }, { versions: [] });
@@ -699,7 +740,7 @@
     // -----------------------------------------------------------------------
 
     async function save() {
-        if (!view.path) return;
+        if (!view.path) return false;
         try {
             const result = await global.Folio.call('save_doc', {
                 path: view.path,
@@ -714,8 +755,10 @@
             }
             await Promise.all([refreshTimeline(), refreshValidation(), refreshComments()]);
             app.refreshDocs();
+            return true;
         } catch (e) {
             global.UI.error(e, 'Could not save');
+            return false;
         }
     }
 
@@ -851,6 +894,8 @@
         },
 
         open,
+        prepareToClose,
+        clear,
         save,
         checkpoint,
         exportHistory,

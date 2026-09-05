@@ -312,6 +312,15 @@ export function create(parent, options = {}) {
                 text: range.empty ? '' : view.state.sliceDoc(range.from, range.to),
             };
         },
+        toByteOffset(offset) {
+            const at = Math.max(0, Math.min(offset, view.state.doc.length));
+            return new TextEncoder().encode(view.state.sliceDoc(0, at)).length;
+        },
+        fromByteOffset(offset) {
+            const bytes = new TextEncoder().encode(view.state.doc.toString());
+            const at = Math.max(0, Math.min(offset, bytes.length));
+            return new TextDecoder().decode(bytes.slice(0, at)).length;
+        },
         scrollTo(offset, { focus = true, selectionLength = 0 } = {}) {
             const at = Math.max(0, Math.min(offset, view.state.doc.length));
             const head = Math.min(at + selectionLength, view.state.doc.length);

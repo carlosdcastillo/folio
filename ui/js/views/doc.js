@@ -123,8 +123,8 @@
         try {
             await global.Folio.call('create_comment', {
                 path: view.path,
-                selection_start: pendingSelection.from,
-                selection_end: pendingSelection.to,
+                selection_start: editor.toByteOffset(pendingSelection.from),
+                selection_end: editor.toByteOffset(pendingSelection.to),
                 body,
             });
             global.UI.closeDialog();
@@ -214,8 +214,8 @@
             .filter((c) => c.anchor && c.status !== 'resolved')
             .map((c) => ({
                 id: c.id,
-                from: c.anchor.offset,
-                to: c.anchor.end,
+                from: editor.fromByteOffset(c.anchor.offset),
+                to: editor.fromByteOffset(c.anchor.end),
                 outdated: c.status === 'outdated',
                 title: c.author + ': ' + c.body.slice(0, 90),
             }));
@@ -389,7 +389,7 @@
         const anchor = el('div', 'comment-anchor', comment.excerpt);
         if (comment.anchor) {
             anchor.title = 'Jump to the anchored text';
-            anchor.addEventListener('click', () => editor.scrollTo(comment.anchor.offset));
+            anchor.addEventListener('click', () => editor.scrollTo(editor.fromByteOffset(comment.anchor.offset)));
         } else if (comment.status === 'outdated') {
             anchor.title = 'The anchored text has changed; this thread is kept, not dropped.';
         } else if (comment.status === 'orphaned') {

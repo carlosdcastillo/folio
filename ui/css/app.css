@@ -1189,6 +1189,10 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
     pointer-events: none;
 }
 
+.preview-ghost-selection {
+    background: var(--accent-secondary);
+}
+
 /* -- Drawer ---------------------------------------------------------------- */
 
 .drawer {

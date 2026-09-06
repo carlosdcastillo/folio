@@ -16,7 +16,7 @@
     let validateTimer = null;
     let caretTimer = null;
     let trackingSource = null;
-    let editorCaret = 0;
+    let editorSelection = { from: 0, to: 0, empty: true };
 
     const view = {
         path: null,
@@ -55,8 +55,8 @@
                     app.setCursor(sel.line, sel.column);
                     editor.setGhostCaret(null);
                     trackingSource = 'editor';
-                    editorCaret = sel.from;
-                    if (sel.empty) schedulePreviewCaret(sel.from);
+                    editorSelection = { from: sel.from, to: sel.to, empty: sel.empty };
+                    schedulePreviewLocation(editorSelection);
                     updateCommentBubble(sel);
                 },
                 anchorClick(commentId) {
@@ -79,30 +79,48 @@
     function renderPreview(text) {
         global.Markdown.render($('preview'), text);
         applyPreviewAnchors();
-        if (trackingSource === 'editor') schedulePreviewCaret(editorCaret);
+        if (trackingSource === 'editor') schedulePreviewLocation(editorSelection);
     }
 
-    function schedulePreviewCaret(offset) {
+    function schedulePreviewLocation(selection) {
         clearTimeout(caretTimer);
-        caretTimer = setTimeout(() => placePreviewCaret(offset), 60);
+        caretTimer = setTimeout(() => {
+            if (selection.empty) placePreviewCaret(selection.from);
+            else placePreviewSelection(selection.from, selection.to);
+        }, 60);
     }
 
     function clearPreviewCaret() {
-        $('preview').querySelector('.preview-ghost-caret')?.remove();
+        const caret = $('preview').querySelector('.preview-ghost-caret');
+        if (!caret) return;
+        const parent = caret.parentNode;
+        caret.remove();
+        parent.normalize();
     }
 
     function placePreviewCaret(offset) {
         clearPreviewCaret();
-        if (trackingSource !== 'editor') return;
-        const block = global.Markdown.blockForOffset($('preview'), offset);
-        if (!block) return;
-        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-        const firstText = walker.nextNode();
-        if (!firstText) return;
+        global.Markdown.clearSelection($('preview'));
+        const mapped = global.Markdown.mapOffset($('preview'), offset);
+        if (!mapped) return;
         const caret = el('span', 'preview-ghost-caret');
         caret.setAttribute('aria-hidden', 'true');
-        firstText.parentNode.insertBefore(caret, firstText);
-        block.scrollIntoView({ block: 'nearest' });
+        if (mapped.node) {
+            const range = document.createRange();
+            range.setStart(mapped.node, mapped.offset);
+            range.collapse(true);
+            range.insertNode(caret);
+        } else {
+            mapped.block.appendChild(caret);
+        }
+        caret.scrollIntoView({ block: 'nearest' });
+    }
+
+    function placePreviewSelection(from, to) {
+        clearPreviewCaret();
+        global.Markdown.applySelection($('preview'), from, to);
+        const selections = $('preview').querySelectorAll('.preview-ghost-selection');
+        selections[selections.length - 1]?.scrollIntoView({ block: 'nearest' });
     }
 
     function scheduleValidate() {
@@ -167,6 +185,8 @@
         updateCommentBubble(mapped);
         if (mapped) {
             trackingSource = 'preview';
+            clearPreviewCaret();
+            editor.setGhostSelection(mapped.from, mapped.to);
         }
     }
 
@@ -183,7 +203,7 @@
         const offset = global.Markdown.mapPoint($('preview'), event.clientX, event.clientY);
         if (offset === null) return;
         trackingSource = 'preview';
-        clearPreviewCaret();
+        placePreviewCaret(offset);
         editor.setGhostCaret(offset);
     }
 
@@ -856,6 +876,8 @@
             $('preview').addEventListener('pointerdown', () => {
                 trackingSource = 'preview';
                 clearPreviewCaret();
+                global.Markdown.clearSelection($('preview'));
+                editor.setGhostCaret(null);
             });
             $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));
             $('preview').addEventListener('click', handlePreviewClick);

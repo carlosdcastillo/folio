@@ -215,6 +215,49 @@
         return mapped ? mapped.offset : null;
     }
 
+    /** Map a raw source offset to the nearest rendered text boundary. */
+    function mapOffset(target, offset) {
+        const blocks = sourceBlocks(target);
+        let block = blockForOffset(target, offset);
+        if (!block && blocks.length) {
+            block = blocks.reduce((nearest, candidate) => {
+                const distance = offset < candidate.start
+                    ? candidate.start - offset
+                    : Math.max(0, offset - candidate.end);
+                return !nearest || distance < nearest.distance
+                    ? { element: candidate.element, distance }
+                    : nearest;
+            }, null).element;
+        }
+        if (!block) return null;
+
+        const nodes = textNodes(block);
+        const map = characterMap(block, target._folioSource || '');
+        if (!map || !map.rendered.length || !nodes.length) return { block, node: null, offset: 0 };
+
+        let renderedOffset = 0;
+        let bestDistance = Infinity;
+        for (let i = 0; i < map.rendered.length; i++) {
+            const beforeDistance = Math.abs(offset - map.starts[i]);
+            if (beforeDistance < bestDistance) {
+                renderedOffset = i;
+                bestDistance = beforeDistance;
+            }
+            const afterDistance = Math.abs(offset - map.ends[i]);
+            if (afterDistance < bestDistance) {
+                renderedOffset = i + 1;
+                bestDistance = afterDistance;
+            }
+        }
+
+        for (const node of nodes) {
+            if (renderedOffset <= node.data.length) return { block, node, offset: renderedOffset };
+            renderedOffset -= node.data.length;
+        }
+        const node = nodes.at(-1);
+        return { block, node, offset: node.data.length };
+    }
+
     function blockForOffset(target, offset) {
         const blocks = sourceBlocks(target);
         let low = 0;
@@ -240,6 +283,50 @@
             nodes.push(node);
         }
         return nodes;
+    }
+
+    function clearSelection(target) {
+        for (const selection of target.querySelectorAll('.preview-ghost-selection')) {
+            const parent = selection.parentNode;
+            selection.replaceWith(...selection.childNodes);
+            parent.normalize();
+        }
+    }
+
+    /** Decorate the rendered characters covered by an editor selection. */
+    function applySelection(target, from, to) {
+        clearSelection(target);
+        if (to <= from) return;
+        const source = target._folioSource || '';
+        for (const block of sourceBlocks(target)) {
+            if (to <= block.start || from >= block.end) continue;
+            const map = characterMap(block.element, source);
+            if (!map) continue;
+            let renderedAt = 0;
+            for (const node of textNodes(block.element)) {
+                const pieces = [];
+                let pieceStart = null;
+                for (let i = 0; i < node.data.length; i++) {
+                    const sourceAt = map.starts[renderedAt + i];
+                    const covered = sourceAt >= from && sourceAt < to;
+                    if (covered && pieceStart === null) pieceStart = i;
+                    if (!covered && pieceStart !== null) {
+                        pieces.push([pieceStart, i]);
+                        pieceStart = null;
+                    }
+                }
+                if (pieceStart !== null) pieces.push([pieceStart, node.data.length]);
+                renderedAt += node.data.length;
+                for (const [start, end] of pieces.reverse()) {
+                    const span = document.createElement('span');
+                    span.className = 'preview-ghost-selection';
+                    const range = document.createRange();
+                    range.setStart(node, start);
+                    range.setEnd(node, end);
+                    range.surroundContents(span);
+                }
+            }
+        }
     }
 
     /** Decorate the rendered characters covered by non-overlapping anchors. */
@@ -388,7 +475,10 @@
         stripFrontmatter,
         mapRange,
         mapPoint,
+        mapOffset,
         blockForOffset,
+        clearSelection,
+        applySelection,
         applyAnchors,
     };
 

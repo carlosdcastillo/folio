@@ -100,6 +100,9 @@ const folioTheme = EditorView.theme({
         borderLeft: `1px solid ${v('--accent-primary', '#007acc')}`,
         pointerEvents: 'none',
     },
+    '.cm-folio-ghost-selection': {
+        backgroundColor: v('--accent-secondary', '#264f78'),
+    },
 });
 
 // ---------------------------------------------------------------------------
@@ -162,8 +165,8 @@ const anchorField = StateField.define({
     provide: (f) => EditorView.decorations.from(f),
 });
 
-// The preview-originated caret is positional context only. It never changes
-// the editor selection or takes focus from the preview.
+// Preview-originated locations are positional context only. They never change
+// the editor selection or take focus from the preview.
 const setGhostCaret = StateEffect.define();
 
 class GhostCaret extends WidgetType {
@@ -182,9 +185,18 @@ const ghostCaretField = StateField.define({
         for (const effect of tr.effects) {
             if (effect.is(setGhostCaret)) {
                 if (effect.value === null) return Decoration.none;
-                const at = Math.max(0, Math.min(effect.value, tr.state.doc.length));
+                const location = typeof effect.value === 'number'
+                    ? { from: effect.value, to: effect.value }
+                    : effect.value;
+                const from = Math.max(0, Math.min(location.from, tr.state.doc.length));
+                const to = Math.max(from, Math.min(location.to, tr.state.doc.length));
+                if (from !== to) {
+                    return Decoration.set([
+                        Decoration.mark({ class: 'cm-folio-ghost-selection' }).range(from, to),
+                    ]);
+                }
                 return Decoration.set([
-                    Decoration.widget({ widget: new GhostCaret(), side: 1 }).range(at),
+                    Decoration.widget({ widget: new GhostCaret(), side: 1 }).range(from),
                 ]);
             }
         }
@@ -349,6 +361,16 @@ export function create(parent, options = {}) {
             const effects = [setGhostCaret.of(at)];
             if (at !== null) effects.push(EditorView.scrollIntoView(at, { y: 'center' }));
             view.dispatch({ effects });
+        },
+        setGhostSelection(from, to) {
+            const start = Math.max(0, Math.min(from, view.state.doc.length));
+            const end = Math.max(start, Math.min(to, view.state.doc.length));
+            view.dispatch({
+                effects: [
+                    setGhostCaret.of({ from: start, to: end }),
+                    EditorView.scrollIntoView(end, { y: 'center' }),
+                ],
+            });
         },
         setFindings(findings) {
             view.dispatch({ effects: setFindings.of(findings || []) });

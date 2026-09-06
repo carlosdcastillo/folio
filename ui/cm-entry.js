@@ -16,9 +16,53 @@ import { highlightSelectionMatches } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
     syntaxHighlighting, HighlightStyle, bracketMatching,
-    foldGutter, foldKeymap, indentOnInput,
+    foldGutter, foldKeymap, indentOnInput, LanguageDescription,
+    LanguageSupport, StreamLanguage,
 } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
+
+// Folio's single embedded IIFE cannot split lazy imports into runtime chunks.
+// Keep the language set focused so fenced-code support stays comfortably below
+// the size of @codemirror/language-data's full catalogue.
+const codeLanguages = [
+    LanguageDescription.of({
+        name: 'Rust', extensions: ['rs'],
+        load: () => import('@codemirror/lang-rust').then((m) => m.rust()),
+    }),
+    LanguageDescription.of({
+        name: 'JavaScript', alias: ['ecmascript', 'js', 'node'], extensions: ['js', 'mjs', 'cjs'],
+        load: () => import('@codemirror/lang-javascript').then((m) => m.javascript()),
+    }),
+    LanguageDescription.of({
+        name: 'Python', extensions: ['py', 'pyw'],
+        load: () => import('@codemirror/lang-python').then((m) => m.python()),
+    }),
+    LanguageDescription.of({
+        name: 'Shell', alias: ['bash', 'sh', 'zsh'], extensions: ['sh', 'ksh', 'bash'],
+        load: () => import('@codemirror/legacy-modes/mode/shell').then((m) =>
+            new LanguageSupport(StreamLanguage.define(m.shell))),
+    }),
+    LanguageDescription.of({
+        name: 'JSON', alias: ['json5'], extensions: ['json', 'map'],
+        load: () => import('@codemirror/lang-json').then((m) => m.json()),
+    }),
+    LanguageDescription.of({
+        name: 'YAML', alias: ['yml'], extensions: ['yaml', 'yml'],
+        load: () => import('@codemirror/lang-yaml').then((m) => m.yaml()),
+    }),
+    LanguageDescription.of({
+        name: 'HTML', alias: ['xhtml'], extensions: ['html', 'htm'],
+        load: () => import('@codemirror/lang-html').then((m) => m.html()),
+    }),
+    LanguageDescription.of({
+        name: 'CSS', extensions: ['css'],
+        load: () => import('@codemirror/lang-css').then((m) => m.css()),
+    }),
+    LanguageDescription.of({
+        name: 'SQL', extensions: ['sql'],
+        load: () => import('@codemirror/lang-sql').then((m) => m.sql()),
+    }),
+];
 
 // Colours resolve to the theme's CSS variables, so a theme switch needs no
 // editor rebuild — the same trick the rest of the app uses.
@@ -294,10 +338,7 @@ export function create(parent, options = {}) {
                 rectangularSelection(),
                 crosshairCursor(),
                 keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
-                // Deliberately no `codeLanguages`: pulling every language grammar into
-                // the bundle costs a megabyte to syntax-highlight fenced code in an
-                // editor that sits beside a live preview which already highlights it.
-                markdown({ base: markdownLanguage }),
+                markdown({ base: markdownLanguage, codeLanguages }),
                 syntaxHighlighting(folioHighlight),
                 folioTheme,
                 EditorView.lineWrapping,

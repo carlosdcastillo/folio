@@ -12,28 +12,7 @@
     const hasHljs = typeof hljs !== 'undefined';
     const hasKatex = typeof renderMathInElement !== 'undefined';
 
-    if (hasMarked) {
-        marked.setOptions({
-            gfm: true,
-            breaks: false,
-            headerIds: false,
-            mangle: false,
-            highlight(code, language) {
-                if (!hasHljs) return code;
-                try {
-                    // The guard. `hljs.highlight` throws on an unregistered
-                    // language, and one bad fence would blank the preview.
-                    if (language && hljs.getLanguage(language)) {
-                        return hljs.highlight(code, { language, ignoreIllegals: true }).value;
-                    }
-                    return hljs.highlightAuto(code).value;
-                } catch (e) {
-                    console.warn('folio: highlight failed for language', language, e);
-                    return code;
-                }
-            },
-        });
-    }
+    if (hasMarked) marked.setOptions({ gfm: true, breaks: false });
 
     function stripFrontmatter(text) {
         const source = String(text || '');
@@ -405,6 +384,25 @@
         }
     }
 
+    function highlightCodeBlocks(container) {
+        if (!hasHljs) return;
+        for (const code of container.querySelectorAll('pre code')) {
+            const language = (Array.from(code.classList)
+                .find((name) => name.startsWith('language-')) || '').replace('language-', '');
+            try {
+                // The guard. `hljs.highlight` throws on an unregistered
+                // language, and one bad fence must not blank the preview.
+                const result = language && hljs.getLanguage(language)
+                    ? hljs.highlight(code.textContent, { language, ignoreIllegals: true })
+                    : hljs.highlightAuto(code.textContent);
+                code.innerHTML = result.value;
+                code.classList.add('hljs');
+            } catch (e) {
+                console.warn('folio: highlight failed for language', language, e);
+            }
+        }
+    }
+
     function decorateTaskLists(container) {
         for (const item of container.querySelectorAll('li')) {
             const first = item.firstElementChild;
@@ -445,6 +443,7 @@
             }
             target.appendChild(holder);
 
+            highlightCodeBlocks(target);
             decorateCodeBlocks(target);
             decorateTaskLists(target);
 

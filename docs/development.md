@@ -26,6 +26,13 @@ first — the linker cannot overwrite a running executable.
 
 Only `ui/cm-entry.js` needs `npm run build`; the rest of `ui/` is plain files.
 
+The editor bundle includes fenced-code grammars for Rust, JavaScript, Python,
+shell, JSON, YAML, HTML, CSS, and SQL. The focused set increased the minified
+bundle from 544,917 bytes to 724,604 bytes (+179,687 bytes); using the full
+`@codemirror/language-data` catalogue instead produced 1,600,846 bytes
+(+1,055,929 bytes). Keep the focused list unless the build is changed to emit
+separate runtime chunks.
+
 ## Test
 
 ```bash

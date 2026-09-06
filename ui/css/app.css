@@ -27,6 +27,11 @@ html, body {
     overflow: hidden;
 }
 
+::selection {
+    background: var(--accent-secondary);
+    color: var(--text-highlight);
+}
+
 button, input, select, textarea {
     font-family: inherit;
 }

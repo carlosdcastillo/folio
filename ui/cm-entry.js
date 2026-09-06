@@ -67,8 +67,14 @@ const folioTheme = EditorView.theme({
     '.cm-activeLineGutter': { backgroundColor: v('--bg-tertiary', '#2d2d30') },
     '.cm-activeLine': { backgroundColor: 'transparent' },
     '&.cm-focused .cm-activeLine': { backgroundColor: 'rgba(128,128,128,0.06)' },
-    '.cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection': {
+    // Match CodeMirror's focused selector specificity so its light default
+    // cannot win in Chromium when Folio itself is using the dark theme.
+    '& > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, &.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
         backgroundColor: v('--accent-secondary', '#264f78'),
+    },
+    '::selection': {
+        backgroundColor: v('--accent-secondary', '#264f78'),
+        color: v('--text-highlight', '#fff'),
     },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: v('--accent-primary', '#007acc') },
     '.cm-selectionMatch': { backgroundColor: 'rgba(0,122,204,0.20)' },

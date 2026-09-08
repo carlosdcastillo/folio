@@ -35,7 +35,7 @@ pub enum Status {
     Pending,
     Accepted,
     Rejected,
-    /// A newer proposal from the same client replaced this one.
+    /// Legacy status for proposals replaced by newer drafts in older versions.
     Superseded,
     /// Pending, but the file moved under it. Derived, never stored — a
     /// conflict that resolves itself when the file moves back should stop
@@ -276,14 +276,6 @@ pub fn create(
         let conn = store.conn();
         let id = Store::alloc_id(&conn, "proposals", "prop")?;
 
-        // A newer proposal from the same client for the same path replaces the
-        // older one, so the review queue never fills with an agent's drafts.
-        conn.execute(
-            "UPDATE proposals SET status = 'superseded', decided_at = ?3
-             WHERE status = 'pending' AND path_key = ?1 AND client = ?2",
-            rusqlite::params![corpus::fold(&req.resolved.path), req.client, now_ms()],
-        )?;
-
         conn.execute(
             "INSERT INTO proposals(id, root_id, path, path_key, base_snapshot_id, base_blob_hash,
                                    proposed_blob_hash, author, client, message, addressing,
@@ -468,7 +460,29 @@ pub fn accept(
         )));
     }
 
-    let (current, proposed, d) = review_diff(store, &proposal)?;
+    let (current, proposed, _) = review_diff(store, &proposal)?;
+    let moved = proposal
+        .base_blob_hash
+        .as_ref()
+        .is_some_and(|base_hash| sha256_hex(current.as_bytes()) != *base_hash);
+    if moved && hunks.is_some() {
+        return Err(Error::Conflict(
+            "cannot partially apply a proposal after the file changed; rebase it and review the updated hunks"
+                .into(),
+        ));
+    }
+    let proposed = match &proposal.base_blob_hash {
+        Some(base_hash) if moved => {
+            let base = store.blobs().get_text(base_hash)?;
+            diff::merge3(&base, &current, &proposed).map_err(|e| {
+                Error::Conflict(format!(
+                    "cannot apply this proposal without dropping newer edits: {e}. Rebase it and review the result."
+                ))
+            })?
+        }
+        _ => proposed,
+    };
+    let d = diff::diff_text(&current, &proposed);
     let (final_text, applied) = match hunks {
         None => (proposed, None),
         Some(selected) => {
@@ -798,12 +812,37 @@ mod tests {
     }
 
     #[test]
-    fn a_second_proposal_from_the_same_client_supersedes_the_first() {
+    fn same_client_proposals_queue_and_both_edits_survive_acceptance() {
+        let f = fixture("one\n\ntwo\n\nthree\n");
+        let first = propose(&f, "ONE\n\ntwo\n\nthree\n");
+        let second = propose(&f, "one\n\ntwo\n\nTHREE\n");
+
+        assert_eq!(get(&f.store, &first.id).unwrap().status, Status::Pending);
+        assert_eq!(get(&f.store, &second.id).unwrap().status, Status::Pending);
+        assert_eq!(pending_counts(&f.store).unwrap()[&corpus::fold(&f.resolved.path)], 2);
+
+        accept(&f.store, &f.cfg, &f.resolved, &second.id, None).unwrap();
+        accept(&f.store, &f.cfg, &f.resolved, &first.id, None).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&f.resolved.fs_path).unwrap(),
+            "ONE\n\ntwo\n\nTHREE\n"
+        );
+        assert_eq!(get(&f.store, &first.id).unwrap().status, Status::Accepted);
+        assert_eq!(get(&f.store, &second.id).unwrap().status, Status::Accepted);
+    }
+
+    #[test]
+    fn overlapping_queued_edits_conflict_instead_of_dropping_the_first() {
         let f = fixture("one\n");
         let first = propose(&f, "ONE\n");
         let second = propose(&f, "One!\n");
-        assert_eq!(get(&f.store, &first.id).unwrap().status, Status::Superseded);
-        assert_eq!(get(&f.store, &second.id).unwrap().status, Status::Pending);
+
+        accept(&f.store, &f.cfg, &f.resolved, &first.id, None).unwrap();
+        let err = accept(&f.store, &f.cfg, &f.resolved, &second.id, None).unwrap_err();
+
+        assert_eq!(err.code(), "conflict");
+        assert_eq!(std::fs::read_to_string(&f.resolved.fs_path).unwrap(), "ONE\n");
+        assert_eq!(get(&f.store, &second.id).unwrap().status, Status::Conflict);
     }
 
     #[test]

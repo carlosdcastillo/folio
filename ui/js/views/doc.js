@@ -85,6 +85,7 @@
     function schedulePreviewLocation(selection) {
         clearTimeout(caretTimer);
         caretTimer = setTimeout(() => {
+            if (trackingSource !== 'editor') return;
             if (selection.empty) placePreviewCaret(selection.from);
             else placePreviewSelection(selection.from, selection.to);
         }, 60);
@@ -184,9 +185,10 @@
         const mapped = previewSelection();
         updateCommentBubble(mapped);
         if (mapped) {
-            trackingSource = 'preview';
             clearPreviewCaret();
             editor.setGhostSelection(mapped.from, mapped.to);
+            trackingSource = 'preview';
+            clearTimeout(caretTimer);
         }
     }
 
@@ -202,9 +204,10 @@
         updateCommentBubble(null);
         const offset = global.Markdown.mapPoint($('preview'), event.clientX, event.clientY);
         if (offset === null) return;
-        trackingSource = 'preview';
         placePreviewCaret(offset);
         editor.setGhostCaret(offset);
+        trackingSource = 'preview';
+        clearTimeout(caretTimer);
     }
 
     async function startComment() {
@@ -874,10 +877,11 @@
             $('comment-bubble-btn').addEventListener('click', startComment);
             $('comment-confirm').addEventListener('click', confirmComment);
             $('preview').addEventListener('pointerdown', () => {
-                trackingSource = 'preview';
                 clearPreviewCaret();
                 global.Markdown.clearSelection($('preview'));
                 editor.setGhostCaret(null);
+                trackingSource = 'preview';
+                clearTimeout(caretTimer);
             });
             $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));
             $('preview').addEventListener('click', handlePreviewClick);

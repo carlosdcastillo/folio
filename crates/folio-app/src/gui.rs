@@ -68,6 +68,7 @@ pub fn run() -> i32 {
     let state = AppState { folio: Arc::clone(&folio), _ipc: ipc };
 
     let result = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .manage(state)
         .invoke_handler(tauri::generate_handler![folio_call, folio_boot])
         .setup(move |app| {

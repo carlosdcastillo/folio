@@ -113,6 +113,13 @@
             return facts;
         },
 
+        /** Open an external HTTP(S) link in the user's default browser. */
+        async openUrl(url) {
+            if (!tauri || !tauri.opener) return false;
+            await tauri.opener.openUrl(url);
+            return true;
+        },
+
         /** Subscribe to a core event type, or '*' for all of them. */
         on(type, fn) {
             if (!listeners.has(type)) listeners.set(type, new Set());

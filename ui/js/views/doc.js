@@ -199,6 +199,15 @@
             highlightComment(anchor.dataset.commentId);
             return;
         }
+        const link = event.target.closest?.('a[href]');
+        if (link && global.Folio.embedded && /^https?:$/.test(link.protocol)) {
+            event.preventDefault();
+            global.Folio.openUrl(link.href).catch((error) => {
+                console.error('folio: external link failed to open', error);
+                global.UI.toast('Could not open that link.', { type: 'error' });
+            });
+            return;
+        }
         const selection = global.getSelection();
         if (selection && !selection.isCollapsed && $('preview').contains(selection.anchorNode)) return;
         updateCommentBubble(null);

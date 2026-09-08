@@ -5,7 +5,7 @@
 // CSS variables, selection reporting for anchored comments, and gutter
 // markers for validation findings — and nothing else.
 
-import { EditorState, StateEffect, StateField, RangeSetBuilder, Compartment } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, RangeSetBuilder, Compartment, Prec } from '@codemirror/state';
 import {
     EditorView, keymap, highlightActiveLine, highlightActiveLineGutter,
     lineNumbers, drawSelection, rectangularSelection, crosshairCursor,
@@ -319,6 +319,8 @@ const editable = new Compartment();
 
 export function create(parent, options = {}) {
     const listeners = options.on || {};
+    let previewLocationActive = false;
+    let suppressNextMultiClick = false;
 
     const view = new EditorView({
         parent,
@@ -367,8 +369,9 @@ export function create(parent, options = {}) {
                         });
                     }
                 }),
-                EditorView.domEventHandlers({
+                Prec.highest(EditorView.domEventHandlers({
                     focus() {
+                        previewLocationActive = false;
                         view.dispatch({ effects: setGhostCaret.of(null) });
                     },
                     mousedown(event) {
@@ -376,8 +379,37 @@ export function create(parent, options = {}) {
                         if (anchor && listeners.anchorClick) {
                             listeners.anchorClick(anchor.getAttribute('data-comment-id'));
                         }
+
+                        // Chromium can carry a multi-click count from the
+                        // preview into the editor. Treat the first click back
+                        // in the editor as a plain caret placement rather than
+                        // letting CodeMirror expand it to a word selection.
+                        if (event.detail > 1 && previewLocationActive) {
+                            const at = view.posAtCoords({ x: event.clientX, y: event.clientY });
+                            if (at !== null) {
+                                previewLocationActive = false;
+                                suppressNextMultiClick = true;
+                                view.dispatch({
+                                    selection: { anchor: at },
+                                    effects: setGhostCaret.of(null),
+                                    scrollIntoView: true,
+                                    userEvent: 'select.pointer',
+                                });
+                                view.focus();
+                                return true;
+                            }
+                        }
+                        return false;
                     },
-                }),
+                    click(event) {
+                        if (event.detail > 1 && suppressNextMultiClick) {
+                            suppressNextMultiClick = false;
+                            return true;
+                        }
+                        suppressNextMultiClick = false;
+                        return false;
+                    },
+                })),
             ],
         }),
     });
@@ -405,6 +437,7 @@ export function create(parent, options = {}) {
             const at = offset === null
                 ? null
                 : Math.max(0, Math.min(offset, view.state.doc.length));
+            previewLocationActive = at !== null;
             const effects = [setGhostCaret.of(at)];
             if (at !== null) effects.push(EditorView.scrollIntoView(at, { y: 'center' }));
             view.dispatch({ effects });
@@ -412,6 +445,7 @@ export function create(parent, options = {}) {
         setGhostSelection(from, to) {
             const start = Math.max(0, Math.min(from, view.state.doc.length));
             const end = Math.max(start, Math.min(to, view.state.doc.length));
+            previewLocationActive = true;
             view.dispatch({
                 effects: [
                     setGhostCaret.of({ from: start, to: end }),

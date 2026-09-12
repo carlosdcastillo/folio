@@ -156,6 +156,10 @@ pub enum Change<'a> {
 pub struct CreateRequest<'a> {
     pub resolved: &'a Resolved,
     pub change: Change<'a>,
+    /// The exact version the agent read. Internal task operations may omit
+    /// this because they perform their own stale check immediately before
+    /// calling the policy layer.
+    pub base_version: Option<&'a str>,
     pub author: &'a str,
     pub client: &'a str,
     pub message: Option<&'a str>,
@@ -177,8 +181,37 @@ pub enum WriteOutcome {
 // ---------------------------------------------------------------------------
 
 /// Resolve the content a change produces, against the base the agent read.
-pub fn materialise(store: &Store, req: &CreateRequest<'_>) -> Result<(String, Option<Snapshot>, String)> {
-    let base = version::latest(store, &req.resolved.path)?;
+pub fn materialise(
+    store: &Store,
+    req: &CreateRequest<'_>,
+) -> Result<(String, Option<Snapshot>, String)> {
+    let latest = version::latest(store, &req.resolved.path)?;
+    let base = match req.base_version {
+        Some(claimed) => {
+            let snapshot = version::get(store, claimed)?;
+            if !crate::util::path_eq(&snapshot.path, &req.resolved.path) {
+                return Err(Error::invalid(format!(
+                    "version {claimed} belongs to {}, not {}",
+                    snapshot.display,
+                    req.resolved.display()
+                )));
+            }
+            if latest.as_ref().map(|s| s.id.as_str()) != Some(claimed) {
+                return Err(Error::stale(
+                    format!(
+                        "{} has moved on since version {claimed}; re-read it before proposing",
+                        req.resolved.display()
+                    ),
+                    serde_json::json!({
+                        "path": req.resolved.path,
+                        "version": latest.as_ref().map(|s| s.id.clone()),
+                    }),
+                ));
+            }
+            Some(snapshot)
+        }
+        None => latest,
+    };
     let base_text = match &base {
         Some(snap) => version::content(store, snap)?,
         // No history yet: fall back to disk so a patch against an unregistered
@@ -689,6 +722,7 @@ mod tests {
             CreateRequest {
                 resolved: &f.resolved,
                 change: Change::Content(content),
+                base_version: None,
                 author: "claude-sonnet-4.6",
                 client: "claude-code",
                 message: Some("Tighten the threshold"),
@@ -780,6 +814,7 @@ mod tests {
             CreateRequest {
                 resolved: &resolved,
                 change: Change::Content("# TODO\n\n- [ ] one @carlos\n- [x] two @carlos\n"),
+                base_version: None,
                 author: "claude-sonnet-4.6",
                 client: "claude-code",
                 message: Some("tick two"),
@@ -800,6 +835,7 @@ mod tests {
             CreateRequest {
                 resolved: &f.resolved,
                 change: Change::Patch("@@ -1,3 +1,3 @@\n one\n-two\n+TWO\n three\n"),
+                base_version: None,
                 author: "codex",
                 client: "codex-cli",
                 message: Some("uppercase"),
@@ -857,6 +893,7 @@ mod tests {
             CreateRequest {
                 resolved: &f.resolved,
                 change: Change::Content("one!\n"),
+                base_version: None,
                 author: "a",
                 client: "other-client",
                 message: None,
@@ -876,6 +913,7 @@ mod tests {
             CreateRequest {
                 resolved: &f.resolved,
                 change: Change::Content("one\n"),
+                base_version: None,
                 author: "a",
                 client: "c",
                 message: None,

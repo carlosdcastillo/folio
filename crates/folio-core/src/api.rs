@@ -997,6 +997,22 @@ impl Folio {
 
     fn propose_edit(&self, caller: &Caller, p: &Params<'_>) -> Result<Value> {
         let resolved = self.resolve(&p.req_str("path")?)?;
+        let latest = version::latest(&self.store, &resolved.path)?;
+        let base_version = p.opt_str("base_version");
+        if latest.is_some() && base_version.is_none() {
+            return Err(Error::invalid(
+                "`base_version` is required for an existing document; pass the `version` returned by read_doc",
+            ));
+        }
+        let intent = p
+            .opt_str("intent")
+            .or_else(|| p.opt_str("message"))
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| {
+                Error::invalid(
+                    "`intent` is required; state the requested outcome and why this change satisfies it",
+                )
+            })?;
         let content = p.opt_text("content");
         let patch = p.opt_text("patch");
         let change = match (&content, &patch) {
@@ -1014,9 +1030,10 @@ impl Folio {
             CreateRequest {
                 resolved: &resolved,
                 change,
+                base_version: base_version.as_deref(),
                 author: &caller.author,
                 client: &caller.client,
-                message: p.opt_str("message").as_deref(),
+                message: Some(&intent),
                 addressing: p.opt_str("addressing").as_deref(),
             },
         )?;
@@ -1184,6 +1201,7 @@ impl Folio {
             CreateRequest {
                 resolved,
                 change: Change::Content(updated),
+                base_version: None,
                 author: &caller.author,
                 client: &caller.client,
                 message: Some(message),

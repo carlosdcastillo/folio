@@ -291,8 +291,8 @@ def seed_history():
                      .replace("Render the current explanation to a standalone HTML file",
                               "Render the current explanation to a standalone HTML file, KaTeX included"))
         claude.tool("propose_edit", {
-            "path": skill_path, "content": tightened,
-            "message": "Tighten the proactive-table threshold from 4+ rows to 4 rows AND 4 columns; add a KaTeX note."})
+            "path": skill_path, "base_version": doc["version"], "content": tightened,
+            "intent": "Tighten the proactive-table threshold from 4+ rows to 4 rows AND 4 columns; add a KaTeX note."})
 
         # A second agent, a second proposal, so the review inbox groups by author.
         claude.tool("checkpoint", {"path": spec_path, "message": "before restructuring the sections"})
@@ -314,8 +314,8 @@ def seed_history():
             "writes work, and proposals queue durably in the store for review the next time the\n"
             "app opens."))
         codex.tool("propose_edit", {
-            "path": arch_path, "content": edited,
-            "message": "Spell out what headless mode actually does."})
+            "path": arch_path, "base_version": doc["version"], "content": edited,
+            "intent": "Spell out what headless mode actually does."})
     finally:
         codex.close()
 

@@ -118,6 +118,37 @@
         return parts.length <= 3 ? display : '…/' + parts.slice(-3).join('/');
     }
 
+    function riskSignals(diff) {
+        if (!diff || !diff.hunks) return [];
+        const rows = diff.hunks.flatMap((hunk) => hunk.rows || []);
+        const removed = rows.filter((row) => row.kind === 'delete').map((row) => row.text).join('\n');
+        const added = rows.filter((row) => row.kind === 'insert').map((row) => row.text).join('\n');
+        const signals = [];
+
+        const changedTokens = (pattern) => {
+            const before = new Set(removed.match(pattern) || []);
+            const after = new Set(added.match(pattern) || []);
+            return before.size !== after.size || [...before].some((token) => !after.has(token));
+        };
+
+        if (changedTokens(/\b\d+(?:\.\d+)?(?:\+|%|x)?\b/g)) {
+            signals.push('A number or threshold changed. Verify the exact boundary.');
+        }
+        if (changedTokens(/\b(?:must|should|may|always|never|required|optional)\b/gi)) {
+            signals.push('Requirement strength changed. Check that obligations were not softened.');
+        }
+        if (changedTokens(/\b(?:no|not|never|without|unless|except)\b/gi)) {
+            signals.push('Negation or an exception changed. Check for reversed meaning.');
+        }
+        if (changedTokens(/`[^`]+`|\[[^\]]+\]\([^)]+\)|https?:\/\/\S+/g)) {
+            signals.push('A command, identifier, or link changed. Verify it literally.');
+        }
+        if (removed.length > 300 && added.length < removed.length * 0.6) {
+            signals.push('This substantially shortens existing guidance. Check what was lost.');
+        }
+        return signals;
+    }
+
     async function renderDetail() {
         const host = $('review-detail');
         host.innerHTML = '';
@@ -150,7 +181,26 @@
         title.appendChild(el('span', 'proposal-author', proposal.author + ' via ' + proposal.client));
         head.appendChild(title);
 
-        if (proposal.message) head.appendChild(el('div', 'proposal-message', proposal.message));
+        if (proposal.message) {
+            const intent = el('div', 'proposal-intent');
+            intent.appendChild(el('span', 'proposal-intent-label', 'Intent'));
+            intent.appendChild(el('div', 'proposal-message', proposal.message));
+            head.appendChild(intent);
+        }
+
+        head.appendChild(el(
+            'div',
+            'proposal-question',
+            'Does this satisfy the intent without changing anything else?'
+        ));
+
+        const risks = riskSignals(payload.diff);
+        if (risks.length) {
+            const panel = el('div', 'proposal-risks');
+            panel.appendChild(el('div', 'proposal-risks-title', 'Review carefully'));
+            for (const risk of risks) panel.appendChild(el('div', 'proposal-risk', risk));
+            head.appendChild(panel);
+        }
 
         const meta = el('div', 'proposal-meta');
         meta.innerHTML =
@@ -215,8 +265,8 @@
 
     function renderFooter() {
         const summary = $('review-summary');
-        const acceptBtn = $('review-accept-all');
-        const rejectBtn = $('review-reject-all');
+        const acceptBtn = $('review-accept-selected');
+        const rejectBtn = $('review-reject-selected');
 
         const openCount = proposals.filter(isOpen).length;
         const badge = $('review-badge');
@@ -237,10 +287,10 @@
         const total = currentDiff.hunkCount;
         acceptBtn.disabled = accepted.length === 0;
         rejectBtn.disabled = false;
-        acceptBtn.textContent = accepted.length === total ? 'Accept All' : 'Accept ' + accepted.length + ' of ' + total;
+        acceptBtn.textContent = accepted.length === total ? 'Accept proposal' : 'Accept ' + accepted.length + ' of ' + total + ' hunks';
         summary.textContent = openCount + ' waiting · ' +
             (accepted.length === total
-                ? 'accepting every hunk'
+                ? 'all hunks selected'
                 : accepted.length + ' of ' + total + ' hunks selected');
     }
 
@@ -253,6 +303,7 @@
                 id: currentDiff.proposal.id,
                 hunks: partial ? accepted : null,
             });
+            global.Folio.instrument(partial ? 'review.accept.partial' : 'review.accept.full');
             const resolved = decision.resolved_comment
                 ? ' Comment ' + decision.resolved_comment + ' resolved.'
                 : '';
@@ -283,6 +334,7 @@
         if (note === null) return;
         try {
             await global.Folio.call('reject_proposal', { id: currentDiff.proposal.id, note });
+            global.Folio.instrument('review.reject');
             global.UI.toast('Rejected. The agent will read your note on its next list_proposals.', { type: 'info' });
             selectedId = null;
             await load();
@@ -302,70 +354,13 @@
         }
     }
 
-    async function acceptEveryPending() {
-        const open = proposals.filter(isOpen);
-        if (!open.length) return;
-        const go = await global.UI.confirm(
-            'Accept all ' + open.length + ' waiting proposal(s) in full?\n\n' +
-            'Each is applied to disk and recorded as a version authored by the agent that proposed it.',
-            { title: 'Accept all', okLabel: 'Accept all' }
-        );
-        if (!go) return;
-
-        global.UI.loading(true, 'Accepting proposals…');
-        let applied = 0;
-        const failures = [];
-        for (const proposal of open) {
-            try {
-                await global.Folio.call('accept_proposal', { id: proposal.id });
-                applied += 1;
-            } catch (e) {
-                failures.push(proposal.display + ': ' + e.message);
-            }
-        }
-        global.UI.loading(false);
-        await load();
-        app.refreshDocs();
-        await global.DocView.reloadIfClean();
-
-        if (failures.length) {
-            global.UI.alert(
-                'Applied ' + applied + '. These could not be applied:\n\n' + failures.join('\n'),
-                'Accept all'
-            );
-        } else {
-            global.UI.toast('Applied ' + applied + ' proposal(s).', { type: 'success' });
-        }
-    }
-
-    async function rejectEveryPending() {
-        const open = proposals.filter(isOpen);
-        if (!open.length) return;
-        const note = await global.UI.note(
-            'Reject all ' + open.length + ' waiting proposal(s). The note is filed against every one of them.',
-            { title: 'Reject all', placeholder: 'Not now — I am restructuring these files myself.', okLabel: 'Reject all', danger: true }
-        );
-        if (note === null) return;
-
-        global.UI.loading(true, 'Rejecting proposals…');
-        for (const proposal of open) {
-            await global.Folio.tryCall('reject_proposal', { id: proposal.id, note }, null);
-        }
-        global.UI.loading(false);
-        await load();
-        app.refreshDocs();
-        global.UI.toast('Rejected ' + open.length + ' proposal(s).', { type: 'info' });
-    }
-
     const Review = {
         init(application) {
             app = application;
-            $('review-accept-all').addEventListener('click', acceptSelected);
-            $('review-reject-all').addEventListener('click', rejectSelected);
+            $('review-accept-selected').addEventListener('click', acceptSelected);
+            $('review-reject-selected').addEventListener('click', rejectSelected);
         },
         load,
-        acceptEveryPending,
-        rejectEveryPending,
         select(id) {
             statusFilter = 'all';
             return load(id);

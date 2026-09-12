@@ -185,6 +185,8 @@ html[data-platform="macos"] .menu-bar {
     user-select: none;
 }
 
+.review-brand { display: none; }
+
 .toolbar-btn {
     display: flex;
     align-items: center;
@@ -1578,6 +1580,50 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
     padding: 12px 16px;
 }
 
+/* Review is the product's front door. Strip away editor chrome while a human
+ * is making decisions; the document workspace remains one click away. */
+body.review-mode .menu-bar,
+body.review-mode .tab-bar,
+body.review-mode .open-files,
+body.review-mode .status-bar,
+body.review-mode .toolbar-tab-navigation,
+body.review-mode #toolbar-new-doc,
+body.review-mode .toolbar-separator,
+body.review-mode .doc-identity,
+body.review-mode .sidebar-show-toggle,
+body.review-mode .view-btn[data-view="today"] { display: none; }
+
+body.review-mode .toolbar {
+    min-height: 64px;
+    padding: 10px 24px;
+    background: var(--bg-primary);
+}
+
+body.review-mode .review-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.review-brand-mark {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--text-highlight);
+    color: var(--bg-primary);
+    font-family: var(--font-content);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.review-brand strong { display: block; color: var(--text-highlight); font-size: 14px; }
+.review-brand small { display: block; color: var(--text-secondary); font-size: 11px; }
+body.review-mode .view-switch { margin-left: auto; }
+body.review-mode .review-body { width: min(1240px, 100%); margin: 0 auto; padding: 20px 24px; }
+body.review-mode .review-footer { padding: 14px max(24px, calc((100% - 1192px) / 2)); }
+
 .review-files {
     display: flex;
     flex-direction: column;
@@ -1635,7 +1681,16 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
 
 .review-row-main { min-width: 0; }
 .review-row-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-.review-row-meta { color: var(--text-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-row-meta {
+    display: -webkit-box;
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
 .review-row.active .review-row-meta { color: var(--text-highlight); }
 .review-row-counts { flex-shrink: 0; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
 
@@ -1674,10 +1729,55 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
 }
 
 .proposal-message {
-    margin-top: 6px;
     color: var(--text-primary);
     font-size: 13px;
     line-height: 1.6;
+}
+
+.proposal-intent {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--bg-primary);
+    border-radius: 5px;
+}
+
+.proposal-intent-label,
+.proposal-risks-title {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.proposal-question {
+    margin-top: 10px;
+    color: var(--text-highlight);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.proposal-risks {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(204, 167, 0, 0.09);
+    border: 1px solid rgba(204, 167, 0, 0.42);
+    border-radius: 5px;
+}
+
+.proposal-risks-title { color: var(--warning-color); }
+.proposal-risk { color: var(--text-primary); font-size: 12px; line-height: 1.55; }
+.proposal-risk::before { content: '→'; margin-right: 7px; color: var(--warning-color); }
+
+body.review-mode .proposal-meta,
+body.review-mode .diff-line-no,
+body.review-mode .review-summary { color: var(--text-secondary); }
+
+body.review-mode .hunk-btn:not(.chosen-accept):not(.chosen-reject) {
+    border-color: var(--border-light);
+    color: var(--text-primary);
 }
 
 .proposal-meta {

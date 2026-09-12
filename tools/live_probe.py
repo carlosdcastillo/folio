@@ -104,8 +104,8 @@ def main():
             edited = doc["content"] + "\n- A line proposed by the live probe at " + \
                 time.strftime("%H:%M:%S") + ".\n"
             err, out = bridge.tool("propose_edit", {
-                "path": target["path"], "content": edited,
-                "message": "Live probe: does this reach the app?"})
+                "path": target["path"], "base_version": doc["version"], "content": edited,
+                "intent": "Live probe: does this reach the app?"})
             print("propose_edit:", "ERROR " + json.dumps(out) if err else out.get("outcome"))
     finally:
         stderr = bridge.close()

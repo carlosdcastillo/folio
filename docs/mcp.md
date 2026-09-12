@@ -25,10 +25,11 @@ Multiple clients can be connected at once; the app's status bar lists them.
 
 Three things, which the server also states in its `instructions`:
 
-1. **Your edits are proposals, not writes.** `propose_edit` queues a changeset
-   for human review by default. It has not landed until the human accepts it.
-   Task lists are the exception and apply immediately, because a list
-   maintained overnight must not block on review.
+1. **Your edits are version-bound proposals, not writes.** Read the document,
+   pass its `version` back as `base_version`, and prefer a focused patch.
+   `propose_edit` queues the result for human review by default; it has not
+   landed until the human accepts it. Task lists are the exception and apply
+   immediately, because a list maintained overnight must not block on review.
 2. **Rejections carry reasons.** Call `list_proposals` with `status: rejected`
    and `mine_only: true` before re-proposing; the reviewer's note says what to
    change.
@@ -64,14 +65,16 @@ Three things, which the server also states in its `instructions`:
 
 | Tool | Params | Returns |
 |---|---|---|
-| `propose_edit` | `path`, `content` \| `patch`, `message?`, `addressing?`, `author?` | `{outcome: "proposed", proposal}` or `{outcome: "applied", snapshot}` |
+| `propose_edit` | `path`, `intent`, `base_version?`, `content` \| `patch`, `addressing?`, `author?` | `{outcome: "proposed", proposal}` or `{outcome: "applied", snapshot}` |
 | `task_list` | `doc?`, `owner?`, `tag?`, `open_only?`, `query?` | Tasks with line-anchored ids and the version they came from |
 | `task_add` | `doc`, `text`, `owner?`, `tag?`, `author?` | Applied or proposed, plus the new task id |
 | `task_set_status` | `doc`, `task_id`, `status`, `version?`, `text?`, `author?` | Applied or proposed |
 
-`propose_edit` with `content` replaces the whole file; with `patch` it applies a
-unified diff to the base you read. Both record the base snapshot id, so
-conflicts are detectable at review time.
+For an existing document, pass the `version` returned by `read_doc` as
+`base_version`; a proposal against anything older is rejected as stale. Prefer
+`patch`, which applies a focused unified diff without regenerating unchanged
+content. Use `content` for a new file or when replacement is genuinely the
+intent. `intent` is shown above the review diff.
 
 ### Intelligence and feedback
 
@@ -141,8 +144,9 @@ list_comments { "status": "open" }
 reply_comment { "comment_id": "cm_3f21",
                 "body": "Tightened to 4 rows and 4 columns. A proposal addresses this." }
 
-propose_edit { "path": "…/SKILL.md", "content": "…", "addressing": "cm_3f21",
-               "message": "Tighten the proactive-table threshold" }
+propose_edit { "path": "…/SKILL.md", "base_version": "snap_c117", "patch": "…",
+               "addressing": "cm_3f21",
+               "intent": "Tighten the proactive-table threshold" }
 ```
 
 Accepting that proposal resolves the thread automatically. Rejecting leaves the

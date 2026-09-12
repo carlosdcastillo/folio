@@ -80,8 +80,6 @@
                 <button class="menu-category-btn">Review</button>
                 <div class="menu-dropdown">
                     <button class="menu-item" data-action="review">Review Proposals <span class="shortcut" data-shortcut="Mod+R">Ctrl+R</span></button>
-                    <button class="menu-item" data-action="accept-all">Accept All&hellip;</button>
-                    <button class="menu-item" data-action="reject-all">Reject All&hellip;</button>
                     <div class="menu-divider"></div>
                     <button class="menu-item" data-action="comments">Comments <span class="shortcut" data-shortcut="Mod+Shift+C">Ctrl+Shift+C</span></button>
                     <button class="menu-item" data-action="resolve-comment">Resolve Comment <span class="shortcut" data-shortcut="Mod+Enter">Ctrl+Enter</span></button>
@@ -141,6 +139,13 @@
             <div class="content-column">
                 <!-- Toolbar -->
                 <div class="toolbar" id="toolbar">
+                    <div class="review-brand" aria-hidden="true">
+                        <span class="review-brand-mark">F</span>
+                        <span>
+                            <strong>Review agent changes</strong>
+                            <small>One decision at a time</small>
+                        </span>
+                    </div>
                     <button class="toolbar-btn sidebar-show-toggle" id="sidebar-show-toggle" type="button"
                             title="Show corpus sidebar" aria-label="Show corpus sidebar"
                             aria-controls="corpus-sidebar" aria-expanded="false" hidden>
@@ -175,7 +180,7 @@
 
                     <div class="view-switch" role="tablist" aria-label="View">
                         <button class="toolbar-btn view-btn active" data-view="doc" title="Document">
-                            <span class="toolbar-icon">&#9998;</span><span class="toolbar-text">Doc</span>
+                            <span class="toolbar-icon">&#9998;</span><span class="toolbar-text">Docs</span>
                         </button>
                         <button class="toolbar-btn view-btn" data-view="review" title="Review Proposals (Ctrl+R)" data-shortcut-title="Review Proposals ({shortcut})" data-shortcut="Mod+R">
                             <span class="toolbar-icon">&#8644;</span><span class="toolbar-text">Review</span>
@@ -250,8 +255,8 @@
                         </div>
                         <div class="review-footer" id="review-footer">
                             <span class="review-summary" id="review-summary"></span>
-                            <button class="btn-secondary" id="review-reject-all">Reject All&hellip;</button>
-                            <button class="btn-primary" id="review-accept-all">Accept All</button>
+                            <button class="btn-secondary" id="review-reject-selected">Reject proposal&hellip;</button>
+                            <button class="btn-primary" id="review-accept-selected">Accept proposal</button>
                         </div>
                     </section>
 

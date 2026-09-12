@@ -162,6 +162,10 @@ def main():
         check(set(names) == expected, "the tool surface is exactly the specified one")
         check(all("inputSchema" in t and t["inputSchema"]["type"] == "object" for t in tools),
               "every tool declares an object input schema")
+        proposal_schema = next(t["inputSchema"] for t in tools if t["name"] == "propose_edit")
+        check("base_version" in proposal_schema["properties"] and
+              "intent" in proposal_schema["required"],
+              "proposals declare the version-bound intent contract")
         check(not any(n in names for n in ("accept_proposal", "reject_proposal", "resolve_comment")),
               "no tool lets an agent decide a proposal or resolve a thread")
 
@@ -193,8 +197,9 @@ def main():
         tightened = doc["content"].replace("4+ rows or 3+ columns", "4 rows and 4 columns")
         err, outcome = client.call_tool("propose_edit", {
             "path": skill_path,
+            "base_version": doc["version"],
             "content": tightened,
-            "message": "Tighten the proactive-table threshold from 4+ rows to 4 rows AND 4 columns.",
+            "intent": "Tighten the proactive-table threshold from 4+ rows to 4 rows AND 4 columns.",
         })
         check(not err and outcome["outcome"] == "proposed", "the edit became a proposal, not a write")
         with open(skill_path, encoding="utf-8") as fh:
@@ -211,6 +216,15 @@ def main():
         print("checkpoint")
         err, cp = client.call_tool("checkpoint", {"path": skill_path, "message": "before restructuring commands"})
         check(cp["snapshot"]["source"] == "checkpoint", "agents can mark milestones too")
+
+        print("propose_edit (stale)")
+        err, stale = client.call_tool("propose_edit", {
+            "path": skill_path,
+            "base_version": doc["version"],
+            "content": tightened,
+            "intent": "Retry an edit based on the old version.",
+        })
+        check(err and stale["code"] == "stale", "a proposal against an old version is refused")
 
         print("task_list / task_set_status")
         todo = os.path.join(corpus, "TODO.md")

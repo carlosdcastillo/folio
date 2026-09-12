@@ -93,7 +93,12 @@ ui/                 vanilla JS frontend, embedded at compile time
 Every operation the product has is a name in one `match`:
 
 ```rust
-folio.dispatch(&caller, "propose_edit", &json!({ "path": …, "content": … }))
+folio.dispatch(&caller, "propose_edit", &json!({
+    "path": …,
+    "base_version": …,
+    "patch": …,
+    "intent": …,
+}))
 ```
 
 Three callers reach it:

@@ -55,6 +55,7 @@
     async function showView(name, options) {
         const { remember = true } = options || {};
         state.view = name;
+        document.body.classList.toggle('review-mode', name === 'review');
         // Folio is meant to be open every morning; it should come back to
         // whatever you were last looking at rather than always to a document.
         if (remember) {
@@ -342,14 +343,6 @@
         'toggle-theme': () => setTheme(state.theme === 'dark' ? 'light' : 'dark'),
 
         review: () => showView('review'),
-        'accept-all': async () => {
-            await showView('review');
-            global.Review.acceptEveryPending();
-        },
-        'reject-all': async () => {
-            await showView('review');
-            global.Review.rejectEveryPending();
-        },
         comments: () => {
             showView('doc');
             global.DocView.openDrawer('comments');
@@ -663,19 +656,22 @@
             $('editor-pane').appendChild(empty);
             $('editor-host').style.display = 'none';
         } else {
-            // Reopen whatever was last in front.
-            const remembered = await global.Folio.tryCall('ui_state_get', { key: 'lastDoc' }, null);
-            let last = remembered && remembered.value;
-            if (!last) {
-                try { last = localStorage.getItem('folio.lastDoc'); } catch (e) { /* ignore */ }
-            }
-            const target = state.docs.find((d) => d.path === last) || state.docs[0];
-            if (target) await openDoc(target.path);
-
-            // Folio is meant to be opened every morning; come back to whatever
-            // was in front, not always to a document.
-            if (rememberedView === 'review' || rememberedView === 'today') {
-                await showView(rememberedView, { remember: false });
+            // Pending agent work is Folio's primary job. Supporting views stay
+            // available, but never obscure a decision waiting for the human.
+            if (state.proposals.some((p) => p.status === 'pending' || p.status === 'conflict')) {
+                await showView('review', { remember: false });
+            } else {
+                // With no decision waiting, reopen the last document as before.
+                const remembered = await global.Folio.tryCall('ui_state_get', { key: 'lastDoc' }, null);
+                let last = remembered && remembered.value;
+                if (!last) {
+                    try { last = localStorage.getItem('folio.lastDoc'); } catch (e) { /* ignore */ }
+                }
+                const target = state.docs.find((d) => d.path === last) || state.docs[0];
+                if (target) await openDoc(target.path);
+                if (rememberedView === 'review' || rememberedView === 'today') {
+                    await showView(rememberedView, { remember: false });
+                }
             }
         }
 

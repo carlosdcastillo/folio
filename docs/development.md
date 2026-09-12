@@ -36,7 +36,7 @@ separate runtime chunks.
 ## Test
 
 ```bash
-cargo test -p folio-core          # 90 unit tests + 19 end-to-end
+cargo test -p folio-core          # 96 unit tests + 22 end-to-end
 ```
 
 `crates/folio-core/tests/end_to_end.rs` is written directly against the

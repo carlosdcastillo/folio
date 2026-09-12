@@ -13,9 +13,10 @@ Four capabilities define it:
    snapshotted automatically — whether you made it in the editor, an agent made
    it through MCP, or any external tool made it on disk. Files stay plain,
    portable markdown; the history lives in Folio's private store.
-2. **Proposals.** Agents that edit through MCP land their changes as pending
-   changesets by default. You review a prose-aware diff and accept or reject
-   hunk by hunk. Direct writes are an opt-in policy, not the default.
+2. **Proposals.** Agents edit the exact version they read and stale proposals
+   are rejected. Changes land as pending changesets by default, where semantic
+   risk cues call out altered thresholds, obligations, exceptions, commands,
+   and links before you accept or reject each hunk.
 3. **Artifact intelligence.** Folio knows what a skill, a prompt, and a task
    list *are*. It validates skill structure and reference integrity, renders
    prompt templates with variable slots, and aggregates task lists into a
@@ -147,7 +148,7 @@ with `--store` and back up by exporting instead.
 ## Development
 
 ```bash
-cargo test -p folio-core                     # 90 unit + 19 end-to-end tests
+cargo test -p folio-core                     # 96 unit + 22 end-to-end tests
 python tools/mcp_smoke.py                    # the real stdio MCP protocol
 python tools/seed_demo.py                    # a demo corpus with history
 python tools/watcher_check.py                # watcher latency, against a running app

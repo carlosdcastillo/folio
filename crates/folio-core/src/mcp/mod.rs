@@ -230,19 +230,21 @@ fn tools() -> Vec<ToolDef> {
         ToolDef {
             name: "propose_edit",
             op: "propose_edit",
-            description: "Propose a change to a document. Under the default policy this queues a reviewable changeset rather than writing to disk; the human accepts or rejects it hunk by hunk. Task lists apply immediately. Pass `content` to replace the file, or `patch` for a unified diff against the version you read.",
+            description: "Propose a narrowly scoped change against the exact document version you read. Existing documents require `base_version`; stale edits are rejected. Prefer `patch` so unchanged content is not regenerated. Under the default policy the human reviews each hunk before anything reaches disk.",
             read_only: false,
             schema: || {
                 object(
                     json!({
                         "path": str_prop(PATH_DOC),
-                        "content": str_prop("The complete new content of the file."),
-                        "patch": str_prop("A unified diff to apply to the version you read. Use instead of `content`, never with it."),
-                        "message": str_prop("What this change does and why. This is what the reviewer reads first."),
+                        "base_version": str_prop("Required for an existing document. Pass the exact `version` returned by read_doc; the proposal fails if that version is no longer current."),
+                        "content": str_prop("The complete new content. Prefer this only when creating a new file; use `patch` for existing documents."),
+                        "patch": str_prop("A focused unified diff against `base_version`. Use instead of `content`, never with it."),
+                        "intent": str_prop("A concise statement of the requested outcome and why this particular change satisfies it. The reviewer sees this above the diff."),
+                        "message": str_prop("Deprecated alias for `intent`."),
                         "addressing": str_prop("The id of a comment this change answers, e.g. `cm_3f21`. Accepting the proposal resolves that thread automatically."),
                         "author": str_prop(AUTHOR_DOC),
                     }),
-                    &["path"],
+                    &["path", "intent"],
                 )
             },
         },
@@ -415,8 +417,10 @@ before re-proposing; the reviewer's note says what to change.
 passages the human has flagged. Reply in the thread, then send a `propose_edit` with \
 `addressing` set to the comment id. Accepting it resolves the thread.
 
-Read before you write. Task ids are line-anchored and only valid for the version they came \
-from, so pass `version` back to `task_set_status`.";
+Read before you write. For `propose_edit`, pass the exact `version` from `read_doc` as \
+`base_version`, prefer a focused patch, and preserve constraints outside the requested scope. \
+Task ids are line-anchored and only valid for the version they came from, so pass `version` \
+back to `task_set_status`.";
 
 // ---------------------------------------------------------------------------
 // The server
@@ -608,6 +612,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn proposals_expose_the_version_bound_review_contract() {
+        let def = tools()
+            .into_iter()
+            .find(|def| def.name == "propose_edit")
+            .unwrap();
+        let schema = (def.schema)();
+        assert!(schema["properties"].get("base_version").is_some());
+        assert!(schema["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|value| value.as_str() == Some("intent")));
     }
 
     #[test]

@@ -81,6 +81,13 @@ impl Bed {
     fn read(&self, relative: &str) -> String {
         std::fs::read_to_string(self.dir.path().join("corpus").join(relative)).unwrap()
     }
+
+    fn version(&self, path: &str) -> String {
+        self.call(&agent(), "read_doc", json!({ "path": path }))["version"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    }
 }
 
 const SKILL_MD: &str = "---\nname: visual-explainer\ndescription: Renders explanations as pictures.\n---\n\n\
@@ -214,7 +221,12 @@ fn an_agent_edit_arrives_as_a_reviewable_proposal_end_to_end() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &path, "content": proposed, "message": "Tighten the second paragraph" }),
+        json!({
+            "path": &path,
+            "base_version": doc["version"],
+            "content": proposed,
+            "intent": "Tighten the second paragraph",
+        }),
     );
     assert_eq!(outcome["outcome"], "proposed");
     let proposal_id = outcome["proposal"]["id"].as_str().unwrap().to_string();
@@ -239,6 +251,46 @@ fn an_agent_edit_arrives_as_a_reviewable_proposal_end_to_end() {
 }
 
 #[test]
+fn proposals_require_the_exact_version_the_agent_read() {
+    let bed = Bed::new();
+    let path = bed.path("markdowns/DESIGN.md");
+    let read = bed.call(&agent(), "read_doc", json!({ "path": &path }));
+
+    let missing = bed
+        .try_call(
+            &agent(),
+            "propose_edit",
+            json!({
+                "path": &path,
+                "content": "# Design\n\nAgent draft.\n",
+                "intent": "Update the design",
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(missing.code(), "invalid");
+
+    bed.call(
+        &you(),
+        "save_doc",
+        json!({ "path": &path, "content": "# Design\n\nHuman revision.\n" }),
+    );
+    let stale = bed
+        .try_call(
+            &agent(),
+            "propose_edit",
+            json!({
+                "path": &path,
+                "base_version": read["version"],
+                "content": "# Design\n\nAgent draft.\n",
+                "intent": "Update the design",
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(stale.code(), "stale");
+    assert_eq!(bed.read("markdowns/DESIGN.md"), "# Design\n\nHuman revision.\n");
+}
+
+#[test]
 fn hunk_level_accept_applies_exactly_the_accepted_hunks() {
     let bed = Bed::new();
     let path = bed.path("markdowns/DESIGN.md");
@@ -250,7 +302,12 @@ fn hunk_level_accept_applies_exactly_the_accepted_hunks() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &path, "content": proposed, "message": "shout twice" }),
+        json!({
+            "path": &path,
+            "base_version": bed.version(&path),
+            "content": proposed,
+            "intent": "shout twice",
+        }),
     );
     let id = outcome["proposal"]["id"].as_str().unwrap().to_string();
 
@@ -272,7 +329,12 @@ fn a_rejection_note_is_the_feedback_loop() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &path, "content": proposed, "message": "shout the title" }),
+        json!({
+            "path": &path,
+            "base_version": bed.version(&path),
+            "content": proposed,
+            "intent": "shout the title",
+        }),
     );
     let id = outcome["proposal"]["id"].as_str().unwrap().to_string();
 
@@ -309,14 +371,17 @@ fn a_proposal_queued_headless_is_waiting_later() {
         folio
             .dispatch(&you(), "add_root", &json!({ "path": corpus.to_string_lossy() }))
             .unwrap();
+        let note_path = corpus.join("NOTE.md").to_string_lossy().to_string();
+        let read = folio.dispatch(&agent(), "read_doc", &json!({ "path": &note_path })).unwrap();
         let outcome = folio
             .dispatch(
                 &agent(),
                 "propose_edit",
                 &json!({
-                    "path": corpus.join("NOTE.md").to_string_lossy(),
+                    "path": note_path,
+                    "base_version": read["version"],
                     "content": "one\n\nTWO\n",
-                    "message": "overnight",
+                    "intent": "overnight",
                 }),
             )
             .unwrap();
@@ -385,8 +450,9 @@ fn a_comment_closes_the_loop_from_highlight_to_resolution() {
         "propose_edit",
         json!({
             "path": &path,
+            "base_version": bed.version(&path),
             "content": fixed,
-            "message": "Tighten the proactive-table threshold",
+            "intent": "Tighten the proactive-table threshold",
             "addressing": &comment_id,
         }),
     );
@@ -432,8 +498,9 @@ fn rejecting_an_addressing_proposal_leaves_the_thread_open_with_the_note_in_it()
         "propose_edit",
         json!({
             "path": &path,
+            "base_version": bed.version(&path),
             "content": content.replace("4+ rows or 3+ columns", "2 rows or 2 columns"),
-            "message": "Loosen it a lot",
+            "intent": "Loosen it a lot",
             "addressing": &comment_id,
         }),
     );
@@ -710,7 +777,12 @@ fn write_policy_is_enforced_in_the_core_and_overridable_per_path() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &doc_path, "content": "# Design\n\nChanged.\n" }),
+        json!({
+            "path": &doc_path,
+            "base_version": bed.version(&doc_path),
+            "content": "# Design\n\nChanged.\n",
+            "intent": "Change the design document",
+        }),
     );
     assert_eq!(outcome["outcome"], "proposed");
 
@@ -723,7 +795,12 @@ fn write_policy_is_enforced_in_the_core_and_overridable_per_path() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &doc_path, "content": "# Design\n\nChanged directly.\n" }),
+        json!({
+            "path": &doc_path,
+            "base_version": bed.version(&doc_path),
+            "content": "# Design\n\nChanged directly.\n",
+            "intent": "Change the design document directly",
+        }),
     );
     assert_eq!(outcome["outcome"], "applied");
     assert!(bed.read("markdowns/DESIGN.md").contains("Changed directly"));
@@ -750,7 +827,12 @@ fn agents_cannot_decide_proposals_or_resolve_threads() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &path, "content": "# Design\n\nChanged.\n" }),
+        json!({
+            "path": &path,
+            "base_version": bed.version(&path),
+            "content": "# Design\n\nChanged.\n",
+            "intent": "Change the design document",
+        }),
     );
     let id = outcome["proposal"]["id"].as_str().unwrap().to_string();
 
@@ -831,7 +913,12 @@ fn emptying_a_document_is_a_legitimate_edit() {
     let outcome = bed.call(
         &agent(),
         "propose_edit",
-        json!({ "path": &path, "content": "", "message": "empty it" }),
+        json!({
+            "path": &path,
+            "base_version": bed.version(&path),
+            "content": "",
+            "intent": "empty it",
+        }),
     );
     let id = outcome["proposal"]["id"].as_str().unwrap().to_string();
     bed.call(&you(), "accept_proposal", json!({ "id": id }));

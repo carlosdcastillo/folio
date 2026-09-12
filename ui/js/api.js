@@ -10,6 +10,16 @@
     const tauri = global.__TAURI__ || null;
     const invoke = tauri && tauri.core ? tauri.core.invoke : null;
     let platform = document.documentElement.dataset.platform || 'linux';
+    const usageSession = global.crypto && typeof global.crypto.randomUUID === 'function'
+        ? global.crypto.randomUUID()
+        : 'launch-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    const instrumentedOperations = new Set([
+        'add_root', 'remove_root', 'set_root_policy', 'set_path_policy', 'remove_path_policy',
+        'create_doc', 'save_doc', 'checkpoint', 'restore_version',
+        'accept_proposal', 'reject_proposal', 'rebase_proposal',
+        'create_comment', 'reply_comment', 'resolve_comment', 'reopen_comment', 'delete_comment',
+        'task_add', 'task_set_status', 'mark_reviewed',
+    ]);
 
     function formatShortcut(value) {
         const parts = String(value || '').split('+');
@@ -90,10 +100,21 @@
                 });
             }
             try {
-                return await invoke('folio_call', { op, params: params || {} });
+                const result = await invoke('folio_call', { op, params: params || {} });
+                if (instrumentedOperations.has(op)) this.instrument('operation.' + op);
+                return result;
             } catch (raw) {
                 throw new FolioError(normalizeError(raw));
             }
+        },
+
+        /** Record a context-free event when the user has opted in. */
+        instrument(event) {
+            if (!invoke) return;
+            invoke('folio_call', {
+                op: 'record_usage_event',
+                params: { session: usageSession, event },
+            }).catch(() => { /* Instrumentation must never affect the product path. */ });
         },
 
         /** Like `call`, but returns `fallback` instead of throwing. */

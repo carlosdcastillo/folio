@@ -132,6 +132,12 @@ for rather than quietly using a different one.
 Losing the store costs history, never documents. Your markdown is on disk,
 unchanged, and Folio never writes a `.git` directory into your folders.
 
+Optional usage instrumentation can be enabled under **Preferences → Improve
+Folio**. It stays in the local store and records only context-free action names,
+timestamps, app version, and a random per-launch session. It never includes
+document paths, content, searches, or comments, and nothing is sent
+automatically. You can copy the JSON for sharing or clear it at any time.
+
 **Do not put the store in a cloud-synced folder.** SQLite and file sync corrupt
 each other. Folio detects the well-known sync roots and warns loudly; move it
 with `--store` and back up by exporting instead.

@@ -944,6 +944,8 @@ html[data-platform="macos"] .menu-bar {
 .pref-section input[type="checkbox"] { display: inline; width: auto; margin-right: 8px; }
 .pref-facts { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); line-height: 1.8; }
 .pref-facts strong { color: var(--text-primary); font-weight: 600; }
+.pref-help { margin: -4px 0 10px 24px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+.pref-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 .toast-container {
     position: fixed;

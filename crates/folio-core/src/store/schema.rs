@@ -4,7 +4,7 @@
 //! on disk, blobs in the blob store. Losing this database costs history, never
 //! documents — which is the whole point of keeping files plain.
 
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS meta (
@@ -138,4 +138,17 @@ CREATE TABLE IF NOT EXISTS rate_events (
 );
 
 CREATE INDEX IF NOT EXISTS rate_events_window ON rate_events(client, kind, at);
+
+-- Optional, local-only product instrumentation. Event names are deliberately
+-- context-free: no document paths, content, search terms, or other properties
+-- are collected. The user can inspect and clear this table from Preferences.
+CREATE TABLE IF NOT EXISTS usage_events (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session     TEXT NOT NULL,
+    event       TEXT NOT NULL,
+    app_version TEXT NOT NULL,
+    at          INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS usage_events_by_time ON usage_events(at, id);
 "#;

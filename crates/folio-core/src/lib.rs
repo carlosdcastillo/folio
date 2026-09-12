@@ -13,6 +13,7 @@ pub mod corpus;
 pub mod diff;
 pub mod error;
 pub mod event;
+pub mod instrumentation;
 pub mod proposal;
 pub mod search;
 pub mod store;

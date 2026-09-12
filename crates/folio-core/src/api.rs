@@ -12,6 +12,7 @@ use crate::corpus::{self, ArtifactType, Policy, Resolved, Root};
 use crate::diff;
 use crate::error::{Error, Result};
 use crate::event::{Bus, ClientInfo, CommentActivityKind, Event};
+use crate::instrumentation;
 use crate::proposal::{self, Change, CreateRequest, WriteOutcome};
 use crate::search;
 use crate::store::{self, Store};
@@ -925,6 +926,42 @@ impl Folio {
             "ui_state_get" => {
                 let key = p.req_str("key")?;
                 Ok(json!({ "value": self.store.get_meta(&format!("ui.{key}"))? }))
+            }
+            "instrumentation_status" => {
+                caller.require_human("instrumentation_status")?;
+                Ok(json!({
+                    "enabled": instrumentation::enabled(&self.store)?,
+                    "events": instrumentation::count(&self.store)?,
+                }))
+            }
+            "set_instrumentation" => {
+                caller.require_human("set_instrumentation")?;
+                let enabled = p
+                    .opt_bool("enabled")
+                    .ok_or_else(|| Error::invalid("`enabled` is required and must be a boolean"))?;
+                instrumentation::set_enabled(&self.store, enabled)?;
+                Ok(json!({ "enabled": enabled }))
+            }
+            "record_usage_event" => {
+                caller.require_human("record_usage_event")?;
+                let recorded = instrumentation::record(
+                    &self.store,
+                    &p.req_str("session")?,
+                    &p.req_str("event")?,
+                )?;
+                Ok(json!({ "recorded": recorded }))
+            }
+            "export_usage_events" => {
+                caller.require_human("export_usage_events")?;
+                Ok(json!({
+                    "schema": 1,
+                    "generated_at": now_ms(),
+                    "events": instrumentation::list(&self.store)?,
+                }))
+            }
+            "clear_usage_events" => {
+                caller.require_human("clear_usage_events")?;
+                Ok(json!({ "cleared": instrumentation::clear(&self.store)? }))
             }
             "config" => Ok(serde_json::to_value(&self.config)?),
             "ping" => Ok(json!({ "ok": true, "version": crate::VERSION })),

@@ -488,6 +488,17 @@
                 </div>
 
                 <div class="pref-section">
+                    <h4>Improve Folio</h4>
+                    <label><input type="checkbox" id="pref-instrumentation"> Record anonymous usage events locally</label>
+                    <p class="pref-help">Folio records action names, timestamps, app version, and a random per-launch session. It never records document paths, content, searches, or comments, and never sends data automatically.</p>
+                    <div class="pref-facts" id="pref-instrumentation-status">No events recorded.</div>
+                    <div class="pref-actions">
+                        <button class="btn-secondary" id="pref-instrumentation-copy" type="button">Copy usage data</button>
+                        <button class="btn-secondary" id="pref-instrumentation-clear" type="button">Clear</button>
+                    </div>
+                </div>
+
+                <div class="pref-section">
                     <h4>Roots and write policies</h4>
                     <div id="pref-roots"></div>
                     <button class="btn-secondary" id="pref-add-root">Add Root&hellip;</button>

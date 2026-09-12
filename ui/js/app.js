@@ -384,7 +384,10 @@
 
     function runAction(name) {
         const handler = actions[name];
-        if (handler) handler();
+        if (handler) {
+            global.Folio.instrument('action.' + name);
+            handler();
+        }
     }
 
     function initShortcuts() {
@@ -581,17 +584,38 @@
         $('window-maximize').addEventListener('click', () => global.Folio.window.toggleMaximize());
         $('window-close').addEventListener('click', () => global.Folio.window.close());
 
-        $('nav-back').addEventListener('click', () => navigate(-1));
-        $('nav-forward').addEventListener('click', () => navigate(1));
-        $('toolbar-new-doc').addEventListener('click', () => global.Prefs.openNewDoc());
+        $('nav-back').addEventListener('click', () => {
+            global.Folio.instrument('navigation.back');
+            navigate(-1);
+        });
+        $('nav-forward').addEventListener('click', () => {
+            global.Folio.instrument('navigation.forward');
+            navigate(1);
+        });
+        $('toolbar-new-doc').addEventListener('click', () => {
+            global.Folio.instrument('action.new-doc');
+            global.Prefs.openNewDoc();
+        });
         for (const button of document.querySelectorAll('.view-btn')) {
-            button.addEventListener('click', () => showView(button.dataset.view));
+            button.addEventListener('click', () => {
+                global.Folio.instrument('view.' + button.dataset.view);
+                showView(button.dataset.view);
+            });
         }
 
         global.Sidebar.init({
-            onOpen: (path) => openDoc(path),
-            onAddRoot: () => global.Prefs.openAddRoot(),
-            onReview: () => showView('review'),
+            onOpen: (path) => {
+                global.Folio.instrument('navigation.open-document');
+                openDoc(path);
+            },
+            onAddRoot: () => {
+                global.Folio.instrument('action.add-root');
+                global.Prefs.openAddRoot();
+            },
+            onReview: () => {
+                global.Folio.instrument('view.review');
+                showView('review');
+            },
             onFilter: (value) => {
                 state.filter = value;
                 global.Sidebar.render(state);

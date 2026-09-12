@@ -768,6 +768,58 @@ fn agents_cannot_decide_proposals_or_resolve_threads() {
     assert_eq!(bed.read("markdowns/DESIGN.md"), DESIGN_MD);
 }
 
+#[test]
+fn usage_instrumentation_is_opt_in_context_free_and_human_controlled() {
+    let bed = Bed::new();
+
+    let initial = bed.call(&you(), "instrumentation_status", json!({}));
+    assert_eq!(initial, json!({ "enabled": false, "events": 0 }));
+    assert_eq!(
+        bed.call(
+            &you(),
+            "record_usage_event",
+            json!({ "session": "launch-1", "event": "view.today" }),
+        )["recorded"],
+        false
+    );
+
+    let denied = bed
+        .try_call(
+            &agent(),
+            "set_instrumentation",
+            json!({ "enabled": true }),
+        )
+        .unwrap_err();
+    assert_eq!(denied.code(), "policy_denied");
+
+    bed.call(
+        &you(),
+        "set_instrumentation",
+        json!({ "enabled": true }),
+    );
+    bed.call(
+        &you(),
+        "record_usage_event",
+        json!({ "session": "launch-1", "event": "view.today" }),
+    );
+    let export = bed.call(&you(), "export_usage_events", json!({}));
+    assert_eq!(export["schema"], 1);
+    assert_eq!(export["events"].as_array().unwrap().len(), 1);
+    assert_eq!(export["events"][0]["event"], "view.today");
+    assert_eq!(export["events"][0]["session"], "launch-1");
+    assert_eq!(export["events"][0]["app_version"], folio_core::VERSION);
+    assert!(export["events"][0].get("properties").is_none());
+
+    assert_eq!(
+        bed.call(&you(), "clear_usage_events", json!({}))["cleared"],
+        1
+    );
+    assert_eq!(
+        bed.call(&you(), "instrumentation_status", json!({}))["events"],
+        0
+    );
+}
+
 
 #[test]
 fn emptying_a_document_is_a_legitimate_edit() {

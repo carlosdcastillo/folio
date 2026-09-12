@@ -24,7 +24,7 @@
         $('pref-preview').checked = global.DocView.previewOn();
 
         renderRoots();
-        await renderStore();
+        await Promise.all([renderStore(), renderInstrumentation()]);
         global.UI.openDialog('prefs-dialog');
     }
 
@@ -128,6 +128,55 @@
                 'SQLite and file sync corrupt each other. Move it with --store, and back up by exporting instead.';
             host.appendChild(warning);
         }
+    }
+
+    async function renderInstrumentation() {
+        const status = await global.Folio.tryCall(
+            'instrumentation_status', {}, { enabled: false, events: 0 }
+        );
+        $('pref-instrumentation').checked = !!status.enabled;
+        $('pref-instrumentation-status').textContent = status.events === 1
+            ? '1 event recorded locally.'
+            : (status.events || 0) + ' events recorded locally.';
+        $('pref-instrumentation-copy').disabled = !status.events;
+        $('pref-instrumentation-clear').disabled = !status.events;
+    }
+
+    async function setInstrumentation(enabled) {
+        try {
+            await global.Folio.call('set_instrumentation', { enabled });
+            global.UI.toast(
+                enabled ? 'Anonymous local instrumentation enabled.' : 'Instrumentation disabled.',
+                { type: 'success' }
+            );
+            await renderInstrumentation();
+        } catch (e) {
+            $('pref-instrumentation').checked = !enabled;
+            global.UI.error(e, 'Could not change instrumentation');
+        }
+    }
+
+    async function copyInstrumentation() {
+        const data = await global.Folio.tryCall('export_usage_events', {}, null);
+        if (!data) {
+            global.UI.toast('Could not read usage data.', { type: 'error' });
+            return;
+        }
+        const ok = await global.Folio.copyToClipboard(JSON.stringify(data, null, 2));
+        global.UI.toast(ok ? 'Anonymous usage data copied.' : 'Could not reach the clipboard.', {
+            type: ok ? 'success' : 'error',
+        });
+    }
+
+    async function clearInstrumentation() {
+        const go = await global.UI.confirm(
+            'Delete all locally recorded usage events?',
+            { title: 'Clear usage data', okLabel: 'Clear', danger: true }
+        );
+        if (!go) return;
+        await global.Folio.call('clear_usage_events', {});
+        await renderInstrumentation();
+        global.UI.toast('Usage data cleared.', { type: 'success' });
     }
 
 
@@ -528,6 +577,9 @@
                 applyFontSize(px);
             });
             $('pref-preview').addEventListener('change', (e) => global.DocView.setPreview(e.target.checked));
+            $('pref-instrumentation').addEventListener('change', (e) => setInstrumentation(e.target.checked));
+            $('pref-instrumentation-copy').addEventListener('click', copyInstrumentation);
+            $('pref-instrumentation-clear').addEventListener('click', clearInstrumentation);
         },
 
         open,

@@ -10,9 +10,52 @@
     const hasMarked = typeof marked !== 'undefined';
     const hasPurify = typeof DOMPurify !== 'undefined';
     const hasHljs = typeof hljs !== 'undefined';
-    const hasKatex = typeof renderMathInElement !== 'undefined';
+    const hasKatex = typeof katex !== 'undefined';
+    const hasKatexAutoRender = typeof renderMathInElement !== 'undefined';
 
-    if (hasMarked) marked.setOptions({ gfm: true, breaks: false });
+    if (hasMarked) {
+        marked.setOptions({ gfm: true, breaks: false });
+        marked.use({
+            extensions: [{
+                name: 'inlineMath',
+                level: 'inline',
+                start(source) {
+                    return source.indexOf('$');
+                },
+                tokenizer(source) {
+                    if (source[0] !== '$' || source[1] === '$' || /\s/.test(source[1] || '')) {
+                        return;
+                    }
+
+                    for (let i = 1; i < source.length; i++) {
+                        if (source[i] !== '$') continue;
+
+                        let backslashes = 0;
+                        for (let j = i - 1; j >= 0 && source[j] === '\\'; j--) backslashes++;
+                        if (backslashes % 2) continue;
+
+                        // A dollar preceded by whitespace or followed by a
+                        // digit is another potential opener, not this
+                        // expression's closer. These boundaries keep prices
+                        // such as "$10 to $20" and "$10-$20" out of KaTeX
+                        // while allowing Marked to reconsider the later dollar.
+                        if (/\s/.test(source[i - 1]) || /\d/.test(source[i + 1] || '')
+                            || source[i + 1] === '$') return;
+
+                        return {
+                            type: 'inlineMath',
+                            raw: source.slice(0, i + 1),
+                            text: source.slice(1, i),
+                        };
+                    }
+                },
+                renderer(token) {
+                    const source = '$' + token.text + '$';
+                    return '<span class="inline-math-source">' + global.UI.escapeHtml(source) + '</span>';
+                },
+            }],
+        });
+    }
 
     function stripFrontmatter(text) {
         const source = String(text || '');
@@ -472,6 +515,19 @@
         }
     }
 
+    function renderInlineMath(container) {
+        if (!hasKatex) return;
+        for (const node of container.querySelectorAll('.inline-math-source')) {
+            const source = node.textContent;
+            try {
+                katex.render(source.slice(1, -1), node, { throwOnError: false });
+                node.removeAttribute('class');
+            } catch (e) {
+                console.warn('folio: inline KaTeX render failed', e);
+            }
+        }
+    }
+
     const Markdown = {
         /**
          * Render markdown into `target`. Frontmatter is lifted out into its own
@@ -508,23 +564,24 @@
             highlightCodeBlocks(target);
             decorateCodeBlocks(target);
             decorateTaskLists(target);
+            renderInlineMath(target);
 
-            if (hasKatex) {
+            if (hasKatexAutoRender) {
                 try {
                     renderMathInElement(target, {
                         delimiters: [
                             { left: '$$', right: '$$', display: true },
                             { left: '\\[', right: '\\]', display: true },
                             { left: '\\(', right: '\\)', display: false },
-                            { left: '$', right: '$', display: false },
                         ],
+                        ignoredClasses: ['katex'],
                         throwOnError: false,
                     });
                 } catch (e) {
                     console.warn('folio: KaTeX pass failed', e);
                 }
-                mapRenderedMath(target, source);
             }
+            if (hasKatex) mapRenderedMath(target, source);
 
             // External links open in the user's browser, not in the app shell.
             for (const link of target.querySelectorAll('a[href^="http"]')) {

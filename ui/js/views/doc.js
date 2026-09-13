@@ -389,6 +389,11 @@
     function applyPreviewAnchors() {
         const preview = $('preview');
         if (!preview._folioSource) return;
+        for (const math of preview.querySelectorAll('.preview-math-anchor, .preview-math-anchor-outdated')) {
+            math.classList.remove('preview-math-anchor', 'preview-math-anchor-outdated');
+            delete math.dataset.commentId;
+            math.removeAttribute('title');
+        }
         for (const anchor of preview.querySelectorAll('.preview-anchor, .preview-anchor-outdated')) {
             anchor.replaceWith(...anchor.childNodes);
         }

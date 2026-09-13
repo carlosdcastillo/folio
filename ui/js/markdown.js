@@ -40,9 +40,10 @@
     }
 
     /** Frontmatter is metadata; it gets a card, not a horizontal rule. */
-    function frontmatterCard(yaml) {
+    function frontmatterCard(yaml, sourceStart) {
         const card = document.createElement('div');
         card.className = 'frontmatter-card';
+        setSourceRange(card, sourceStart, sourceStart + yaml.length);
         for (const line of yaml.split('\n')) {
             if (!line.trim()) continue;
             const row = document.createElement('div');
@@ -50,7 +51,7 @@
             if (colon > 0 && !line.startsWith(' ') && !line.startsWith('-')) {
                 const key = document.createElement('span');
                 key.className = 'fm-key';
-                key.textContent = line.slice(0, colon + 1) + ' ';
+                key.textContent = line.slice(0, colon + 1);
                 const value = document.createElement('span');
                 value.className = 'fm-value';
                 value.textContent = line.slice(colon + 1).trim();
@@ -131,6 +132,16 @@
         return block && target.contains(block) ? block : null;
     }
 
+    function mathBoundary(target, node, side) {
+        const element = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+        const math = element && element.closest('[data-math-source-start][data-math-source-end]');
+        if (!math || !target.contains(math)) return null;
+        return {
+            offset: Number(math.dataset[side === 'end' ? 'mathSourceEnd' : 'mathSourceStart']),
+            block: containingBlock(target, math),
+        };
+    }
+
     /** Map rendered UTF-16 character boundaries monotonically into raw source. */
     function characterMap(block, source) {
         const start = Number(block.dataset.sourceStart);
@@ -159,6 +170,8 @@
     }
 
     function mapBoundary(target, node, offset, side) {
+        const math = mathBoundary(target, node, side);
+        if (math) return math;
         const block = containingBlock(target, node);
         if (!block) return null;
         const map = characterMap(block, target._folioSource || '');
@@ -256,6 +269,11 @@
         const nodes = [];
         let node;
         while ((node = walker.nextNode())) {
+            // KaTeX duplicates each expression as MathML, an annotation and
+            // visual HTML. Its generated text cannot be mapped character by
+            // character to the Markdown source; the expression is mapped as
+            // one source range instead.
+            if (node.parentElement?.closest('.katex')) continue;
             // Marked inserts formatting newlines between structural tags. They
             // are not visible prose and have no corresponding source character.
             if (/^[\t\r\n ]*$/.test(node.data) && /[\r\n]/.test(node.data)) continue;
@@ -265,6 +283,9 @@
     }
 
     function clearSelection(target) {
+        for (const math of target.querySelectorAll('.preview-math-selection')) {
+            math.classList.remove('preview-math-selection');
+        }
         for (const selection of target.querySelectorAll('.preview-ghost-selection')) {
             const parent = selection.parentNode;
             selection.replaceWith(...selection.childNodes);
@@ -277,6 +298,11 @@
         clearSelection(target);
         if (to <= from) return;
         const source = target._folioSource || '';
+        for (const math of target.querySelectorAll('[data-math-source-start][data-math-source-end]')) {
+            const start = Number(math.dataset.mathSourceStart);
+            const end = Number(math.dataset.mathSourceEnd);
+            if (from < end && to > start) math.classList.add('preview-math-selection');
+        }
         for (const block of sourceBlocks(target)) {
             if (to <= block.start || from >= block.end) continue;
             const map = characterMap(block.element, source);
@@ -315,6 +341,14 @@
         for (const anchor of [...(anchors || [])].sort((a, b) => a.from - b.from)) {
             if (occupied.some((range) => anchor.from < range.to && anchor.to > range.from)) continue;
             occupied.push(anchor);
+            for (const math of target.querySelectorAll('[data-math-source-start][data-math-source-end]')) {
+                const start = Number(math.dataset.mathSourceStart);
+                const end = Number(math.dataset.mathSourceEnd);
+                if (anchor.from >= end || anchor.to <= start) continue;
+                math.classList.add(anchor.outdated ? 'preview-math-anchor-outdated' : 'preview-math-anchor');
+                math.dataset.commentId = anchor.id;
+                math.title = anchor.title || 'Open comment thread';
+            }
             for (const block of sourceBlocks(target)) {
                 if (anchor.to <= block.start || anchor.from >= block.end) continue;
                 const map = characterMap(block.element, source);
@@ -413,6 +447,31 @@
         }
     }
 
+    /** Give generated KaTeX trees the source range of their delimiters. */
+    function mapRenderedMath(target, source) {
+        const delimiters = [['$$', '$$'], ['\\[', '\\]'], ['\\(', '\\)'], ['$', '$']];
+        for (const block of sourceBlocks(target)) {
+            let cursor = block.start;
+            for (const math of block.element.querySelectorAll('.katex')) {
+                const tex = math.querySelector('annotation[encoding="application/x-tex"]')?.textContent;
+                if (tex === undefined) continue;
+                let match = null;
+                for (const [left, right] of delimiters) {
+                    const needle = left + tex + right;
+                    const at = source.indexOf(needle, cursor);
+                    if (at < cursor || at + needle.length > block.end) continue;
+                    if (!match || at < match.start || (at === match.start && needle.length > match.length)) {
+                        match = { start: at, length: needle.length };
+                    }
+                }
+                if (!match) continue;
+                math.dataset.mathSourceStart = String(match.start);
+                math.dataset.mathSourceEnd = String(match.start + match.length);
+                cursor = match.start + match.length;
+            }
+        }
+    }
+
     const Markdown = {
         /**
          * Render markdown into `target`. Frontmatter is lifted out into its own
@@ -432,7 +491,10 @@
             }
 
             const { body, frontmatter, bodyOffset } = stripFrontmatter(source);
-            if (frontmatter && showFrontmatter) target.appendChild(frontmatterCard(frontmatter));
+            if (frontmatter && showFrontmatter) {
+                const frontmatterStart = source.indexOf('\n') + 1;
+                target.appendChild(frontmatterCard(frontmatter, frontmatterStart));
+            }
 
             const holder = document.createElement('div');
             try {
@@ -461,6 +523,7 @@
                 } catch (e) {
                     console.warn('folio: KaTeX pass failed', e);
                 }
+                mapRenderedMath(target, source);
             }
 
             // External links open in the user's browser, not in the app shell.

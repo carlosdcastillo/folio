@@ -1229,8 +1229,19 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
     pointer-events: none;
 }
 
-.preview-ghost-selection {
+.preview-ghost-selection,
+.preview-math-selection {
     background: var(--accent-secondary);
+}
+
+.preview-math-anchor {
+    border-bottom: 2px solid var(--warning-color);
+    cursor: pointer;
+}
+
+.preview-math-anchor-outdated {
+    border-bottom: 2px dashed var(--text-muted);
+    cursor: pointer;
 }
 
 /* -- Drawer ---------------------------------------------------------------- */
@@ -2287,7 +2298,7 @@ body.review-mode .hunk-btn:not(.chosen-accept):not(.chosen-reject) {
     text-align: left;
 }
 
-.frontmatter-card .fm-key { color: var(--accent-primary); }
+.frontmatter-card .fm-key { color: var(--accent-primary); margin-right: 1ch; }
 .frontmatter-card .fm-value { color: var(--text-secondary); overflow-wrap: anywhere; }
 
 @media (max-width: 1100px) {

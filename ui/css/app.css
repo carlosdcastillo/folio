@@ -254,8 +254,39 @@ html[data-platform="macos"] .menu-bar {
     stroke-linejoin: round;
 }
 
-.view-switch { display: flex; gap: 4px; }
-.view-btn.active {
+.view-switch {
+    display: flex;
+    gap: 0;
+    padding: 2px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+}
+
+.view-switch .view-btn {
+    min-width: 86px;
+    justify-content: center;
+    padding: 5px 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+
+.view-switch .view-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    border-color: transparent;
+    color: var(--text-primary);
+}
+
+.view-switch .view-btn.active {
+    background: var(--bg-active);
+    color: var(--text-highlight);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), inset 0 -2px 0 var(--accent-primary);
+}
+
+.view-btn-secondary.active {
     background: var(--bg-active);
     border-color: var(--accent-secondary);
     box-shadow: inset 0 -2px 0 var(--accent-primary);
@@ -1590,8 +1621,7 @@ body.review-mode .toolbar-tab-navigation,
 body.review-mode #toolbar-new-doc,
 body.review-mode .toolbar-separator,
 body.review-mode .doc-identity,
-body.review-mode .sidebar-show-toggle,
-body.review-mode .view-btn[data-view="today"] { display: none; }
+body.review-mode .sidebar-show-toggle { display: none; }
 
 body.review-mode .toolbar {
     min-height: 64px;

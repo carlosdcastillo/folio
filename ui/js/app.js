@@ -65,7 +65,11 @@
             section.classList.toggle('active', section.id === 'view-' + name);
         }
         for (const button of document.querySelectorAll('.view-btn')) {
-            button.classList.toggle('active', button.dataset.view === name);
+            const active = button.dataset.view === name;
+            button.classList.toggle('active', active);
+            if (button.getAttribute('role') === 'tab') {
+                button.setAttribute('aria-selected', String(active));
+            }
         }
         if (name === 'review') await global.Review.load();
         if (name === 'today') await global.Today.load();
@@ -342,7 +346,7 @@
         today: () => showView('today'),
         'toggle-theme': () => setTheme(state.theme === 'dark' ? 'light' : 'dark'),
 
-        review: () => showView('review'),
+        review: () => showView(state.view === 'review' ? 'doc' : 'review'),
         comments: () => {
             showView('doc');
             global.DocView.openDrawer('comments');

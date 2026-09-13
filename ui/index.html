@@ -79,7 +79,7 @@
             <div class="menu-category">
                 <button class="menu-category-btn">Review</button>
                 <div class="menu-dropdown">
-                    <button class="menu-item" data-action="review">Review Proposals <span class="shortcut" data-shortcut="Mod+R">Ctrl+R</span></button>
+                    <button class="menu-item" data-action="review">Toggle Editor / Inbox <span class="shortcut" data-shortcut="Mod+R">Ctrl+R</span></button>
                     <div class="menu-divider"></div>
                     <button class="menu-item" data-action="comments">Comments <span class="shortcut" data-shortcut="Mod+Shift+C">Ctrl+Shift+C</span></button>
                     <button class="menu-item" data-action="resolve-comment">Resolve Comment <span class="shortcut" data-shortcut="Mod+Enter">Ctrl+Enter</span></button>
@@ -178,18 +178,21 @@
 
                     <div class="toolbar-spacer"></div>
 
-                    <div class="view-switch" role="tablist" aria-label="View">
-                        <button class="toolbar-btn view-btn active" data-view="doc" title="Document">
-                            <span class="toolbar-icon">&#9998;</span><span class="toolbar-text">Docs</span>
+                    <div class="view-switch" role="tablist" aria-label="Workspace mode">
+                        <button class="toolbar-btn view-btn active" data-view="doc" role="tab"
+                                aria-selected="true" title="Editor">
+                            <span class="toolbar-icon">&#9998;</span><span class="toolbar-text">Editor</span>
                         </button>
-                        <button class="toolbar-btn view-btn" data-view="review" title="Review Proposals (Ctrl+R)" data-shortcut-title="Review Proposals ({shortcut})" data-shortcut="Mod+R">
-                            <span class="toolbar-icon">&#8644;</span><span class="toolbar-text">Review</span>
+                        <button class="toolbar-btn view-btn" data-view="review" role="tab"
+                                aria-selected="false" title="Proposal Inbox (Ctrl+R)" data-shortcut-title="Proposal Inbox ({shortcut})" data-shortcut="Mod+R">
+                            <span class="toolbar-icon">&#8644;</span><span class="toolbar-text">Inbox</span>
                             <span class="badge" id="review-badge" hidden>0</span>
                         </button>
-                        <button class="toolbar-btn view-btn" data-view="today" title="Today (Ctrl+1)" data-shortcut-title="Today ({shortcut})" data-shortcut="Mod+1">
-                            <span class="toolbar-icon">&#9788;</span><span class="toolbar-text">Today</span>
-                        </button>
                     </div>
+                    <button class="toolbar-btn view-btn view-btn-secondary" data-view="today"
+                            title="Today (Ctrl+1)" data-shortcut-title="Today ({shortcut})" data-shortcut="Mod+1">
+                        <span class="toolbar-icon">&#9788;</span><span class="toolbar-text">Today</span>
+                    </button>
                 </div>
 
                 <nav class="open-files" id="open-files" aria-label="Open files"></nav>

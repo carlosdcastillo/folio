@@ -2162,7 +2162,6 @@ body.review-mode .hunk-btn:not(.chosen-accept):not(.chosen-reject) {
     content: '•';
     position: absolute;
     left: -18px;
-    color: var(--accent-primary);
     font-weight: bold;
     font-size: 1.2em;
     line-height: 1.4;
@@ -2175,7 +2174,6 @@ body.review-mode .hunk-btn:not(.chosen-accept):not(.chosen-reject) {
     content: counter(item) '.';
     position: absolute;
     left: -28px;
-    color: var(--accent-primary);
     font-weight: 600;
     min-width: 20px;
     text-align: right;

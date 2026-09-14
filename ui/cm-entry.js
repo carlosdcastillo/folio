@@ -79,7 +79,6 @@ const folioHighlight = HighlightStyle.define([
     { tag: tags.url, color: v('--accent-primary', '#007acc'), textDecoration: 'underline' },
     { tag: tags.monospace, color: v('--success-color', '#4ec9b0') },
     { tag: tags.quote, color: v('--text-secondary', '#858585'), fontStyle: 'italic' },
-    { tag: tags.list, color: v('--accent-primary', '#007acc') },
     { tag: tags.contentSeparator, color: v('--border-light', '#505050') },
     { tag: tags.processingInstruction, color: v('--text-muted', '#6e6e6e') },
     { tag: tags.keyword, color: v('--accent-primary', '#007acc') },

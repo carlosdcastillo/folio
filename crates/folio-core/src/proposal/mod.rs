@@ -374,9 +374,7 @@ fn decorate(store: &Store, proposal: &mut Proposal) -> Result<()> {
         }
     }
 
-    if let Ok(proposed) = store.blobs().get_text(&proposal.proposed_blob_hash) {
-        let against = current.unwrap_or_default();
-        let d = diff::diff_text(&against, &proposed);
+    if let Ok((_, _, d)) = display_diff(store, proposal) {
         proposal.stats = Some(Stats { added: d.added, removed: d.removed, hunks: d.hunks.len() });
     }
     Ok(())
@@ -444,6 +442,25 @@ pub fn pending_counts(store: &Store) -> Result<std::collections::HashMap<String,
 
 pub fn proposed_content(store: &Store, proposal: &Proposal) -> Result<String> {
     store.blobs().get_text(&proposal.proposed_blob_hash)
+}
+
+/// The stable diff shown to a reviewer. Unlike the actionable review diff,
+/// its endpoints do not move when the document changes again:
+///
+/// - pending/rejected proposals show the proposal's recorded base -> proposal;
+/// - accepted proposals show the recorded base -> the snapshot actually
+///   written, which also represents partial accepts correctly.
+pub fn display_diff(store: &Store, proposal: &Proposal) -> Result<(String, String, Diff)> {
+    let base = match &proposal.base_blob_hash {
+        Some(hash) => store.blobs().get_text(hash)?,
+        None => String::new(),
+    };
+    let result = match (proposal.stored_status, &proposal.result_snapshot_id) {
+        (Status::Accepted, Some(id)) => version::content_by_id(store, id)?,
+        _ => proposed_content(store, proposal)?,
+    };
+    let d = diff::diff_text(&base, &result);
+    Ok((base, result, d))
 }
 
 /// The reviewable diff: current disk content on the left, proposal on the
@@ -766,6 +783,37 @@ mod tests {
         let decision = accept(&f.store, &f.cfg, &f.resolved, &p.id, Some(&[1])).unwrap();
         assert_eq!(std::fs::read_to_string(&f.resolved.fs_path).unwrap(), "one\n\ntwo\n\nTHREE\n");
         assert_eq!(decision.applied_hunks, Some(vec![1]));
+
+        let accepted = get(&f.store, &p.id).unwrap();
+        let (display_base, display_result, _) = display_diff(&f.store, &accepted).unwrap();
+        assert_eq!(display_base, "one\n\ntwo\n\nthree\n");
+        assert_eq!(
+            display_result, "one\n\ntwo\n\nTHREE\n",
+            "the display must show the partial result, not rejected proposal content"
+        );
+    }
+
+    #[test]
+    fn an_accepted_proposal_diff_does_not_reverse_after_later_edits() {
+        let f = fixture("The first version.\n");
+        let p = propose(&f, "The accepted version.\n");
+        accept(&f.store, &f.cfg, &f.resolved, &p.id, None).unwrap();
+
+        std::fs::write(&f.resolved.fs_path, "The later version.\nAnd another line.\n").unwrap();
+        version::record_from_disk(&f.store, &f.cfg, &f.resolved, Source::External, None, None, None).unwrap();
+
+        let accepted = get(&f.store, &p.id).unwrap();
+        let (display_base, display_result, d) = display_diff(&f.store, &accepted).unwrap();
+        assert_eq!(display_base, "The first version.\n");
+        assert_eq!(display_result, "The accepted version.\n");
+        assert_eq!(d.removed, 1);
+        assert_eq!(d.added, 1);
+        assert_eq!(accepted.stats.as_ref().unwrap().removed, 1);
+        assert_eq!(accepted.stats.as_ref().unwrap().added, 1);
+
+        let (current, proposed, _) = review_diff(&f.store, &accepted).unwrap();
+        assert_eq!(current, "The later version.\nAnd another line.\n");
+        assert_eq!(proposed, "The accepted version.\n");
     }
 
     #[test]
@@ -792,7 +840,14 @@ mod tests {
         std::fs::write(&f.resolved.fs_path, "ALPHA\n\nbeta\n\ngamma\n").unwrap();
         version::record_from_disk(&f.store, &f.cfg, &f.resolved, Source::External, None, None, None).unwrap();
 
-        assert_eq!(get(&f.store, &p.id).unwrap().status, Status::Conflict);
+        let conflicted = get(&f.store, &p.id).unwrap();
+        assert_eq!(conflicted.status, Status::Conflict);
+        let (display_base, display_proposal, _) = display_diff(&f.store, &conflicted).unwrap();
+        assert_eq!(display_base, "alpha\n\nbeta\n\ngamma\n");
+        assert_eq!(
+            display_proposal, "alpha\n\nBETA\n\ngamma\n",
+            "a conflict still presents the agent's original change"
+        );
 
         let rebased = rebase(&f.store, &p.id).unwrap();
         assert_eq!(rebased.status, Status::Pending, "rebase clears the conflict");

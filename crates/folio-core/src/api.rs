@@ -761,6 +761,7 @@ impl Folio {
             "proposal_diff" => {
                 let proposal = proposal::get(&self.store, &p.req_str("id")?)?;
                 let (current, proposed, d) = proposal::review_diff(&self.store, &proposal)?;
+                let (_, _, display_diff) = proposal::display_diff(&self.store, &proposal)?;
                 let addressed = match &proposal.addressing {
                     Some(id) => comment::get(&self.store, id).ok(),
                     None => None,
@@ -770,6 +771,7 @@ impl Folio {
                     "current": current,
                     "proposed": proposed,
                     "diff": d,
+                    "display_diff": display_diff,
                     "addresses": addressed,
                 }))
             }

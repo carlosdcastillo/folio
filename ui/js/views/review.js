@@ -173,6 +173,7 @@
         }
 
         const proposal = payload.proposal;
+        const displayDiff = payload.display_diff || payload.diff;
 
         const head = el('div', 'proposal-head');
         const title = el('div', 'proposal-head-title');
@@ -194,7 +195,7 @@
             'Does this satisfy the intent without changing anything else?'
         ));
 
-        const risks = riskSignals(payload.diff);
+        const risks = riskSignals(displayDiff);
         if (risks.length) {
             const panel = el('div', 'proposal-risks');
             panel.appendChild(el('div', 'proposal-risks-title', 'Review carefully'));
@@ -203,16 +204,21 @@
         }
 
         const meta = el('div', 'proposal-meta');
+        const comparison = proposal.status === 'accepted'
+            ? 'base → applied result'
+            : 'base → proposal';
         meta.innerHTML =
             escapeHtml(proposal.id) + ' · proposed ' + escapeHtml(global.UI.absoluteTime(proposal.created_at_iso)) +
             (proposal.base_snapshot_id ? ' · base ' + escapeHtml(proposal.base_snapshot_id) : ' · new file') +
-            (proposal.decided_at_iso ? ' · decided ' + escapeHtml(global.UI.absoluteTime(proposal.decided_at_iso)) : '');
+            (proposal.decided_at_iso ? ' · decided ' + escapeHtml(global.UI.absoluteTime(proposal.decided_at_iso)) : '') +
+            ' · showing ' + comparison;
         head.appendChild(meta);
 
         if (proposal.status === 'conflict') {
             const banner = el('div', 'proposal-conflict');
             banner.appendChild(el('span', null,
-                'The file changed on disk after this proposal was made. Rebase it onto the current content, or reject it.'));
+                'The file changed on disk after this proposal was made. The diff below still shows the original proposal. ' +
+                'Rebase to review it against current content; accepting it whole will merge both changes.'));
             const rebase = el('button', 'hunk-btn', 'Rebase');
             rebase.type = 'button';
             rebase.addEventListener('click', () => rebaseProposal(proposal.id));
@@ -254,13 +260,14 @@
 
         const diffHost = el('div', 'diff');
         host.appendChild(diffHost);
-        const reviewable = isOpen(proposal);
-        currentDiff = global.DiffView.render(diffHost, payload.diff, {
+        const reviewable = proposal.status === 'pending';
+        currentDiff = global.DiffView.render(diffHost, displayDiff, {
             review: reviewable,
             onSelectionChange: () => renderFooter(),
         });
         currentDiff.proposal = proposal;
-        currentDiff.hunkCount = payload.diff && payload.diff.hunks ? payload.diff.hunks.length : 0;
+        currentDiff.hunkCount = displayDiff && displayDiff.hunks ? displayDiff.hunks.length : 0;
+        currentDiff.requiresMerge = proposal.status === 'conflict';
     }
 
     function renderFooter() {
@@ -280,6 +287,14 @@
             acceptBtn.disabled = true;
             rejectBtn.disabled = !currentDiff || !currentDiff.proposal || !isOpen(currentDiff.proposal);
             acceptBtn.textContent = 'Accept';
+            return;
+        }
+
+        if (currentDiff.requiresMerge) {
+            summary.textContent = 'File changed · accept the whole proposal or rebase to review hunks';
+            acceptBtn.disabled = false;
+            rejectBtn.disabled = false;
+            acceptBtn.textContent = 'Accept whole proposal';
             return;
         }
 

@@ -181,12 +181,33 @@
         renderOpenFiles();
     }
 
+    let exitPending = false;
+    let exitAllowed = false;
+
+    async function requestExit() {
+        if (exitPending) return;
+        exitPending = true;
+        try {
+            if (await global.DocView.prepareToExit()) {
+                exitAllowed = true;
+                try {
+                    await global.Folio.window.close();
+                } catch (error) {
+                    exitAllowed = false;
+                    throw error;
+                }
+            }
+        } finally {
+            exitPending = false;
+        }
+    }
+
     async function closeDoc(path) {
         const index = state.openDocs.findIndex((doc) => doc.path === path);
         if (index === -1) return;
 
         const isActive = path === state.currentPath;
-        if (isActive && !(await global.DocView.prepareToClose())) return;
+        if (!(await global.DocView.prepareToClose(path))) return;
         state.openDocs.splice(index, 1);
 
         if (!isActive) {
@@ -226,8 +247,8 @@
             const tab = el('div', 'open-file');
             if (doc.path === state.currentPath) {
                 tab.classList.add('active');
-                if (state.dirty) tab.classList.add('dirty');
             }
+            if (global.DocView.isDirty(doc.path)) tab.classList.add('dirty');
 
             const select = el('button', 'open-file-select');
             select.type = 'button';
@@ -331,7 +352,7 @@
         checkpoint: () => global.DocView.checkpoint(),
         'export-history': () => global.DocView.exportHistory(),
         preferences: () => global.Prefs.open(),
-        exit: () => global.Folio.window.close(),
+        exit: requestExit,
 
         undo: () => document.execCommand('undo'),
         redo: () => document.execCommand('redo'),
@@ -464,17 +485,13 @@
         global.Folio.on('snapshot-created', async (event) => {
             const snapshot = event.snapshot;
             await refreshDocs();
-            if (state.currentPath === snapshot.path) {
-                // An external change to the file on screen: pick it up unless
-                // the user is mid-edit, in which case say so and stay put.
-                if (global.DocView.isDirty()) {
-                    global.UI.toast(
-                        shortName(snapshot.display) + ' changed on disk while you were editing.',
-                        { type: 'warning', hint: 'Your buffer is untouched. Saving will create a new version on top.' }
-                    );
-                } else {
-                    await global.DocView.reloadIfClean();
-                }
+            // Preserve any unsaved tab, active or not. Saving a stale buffer
+            // gets a second, explicit overwrite decision.
+            if (await global.DocView.handleSnapshot(snapshot)) {
+                global.UI.toast(
+                    shortName(snapshot.display) + ' changed on disk while you were editing.',
+                    { type: 'warning', hint: 'Your buffer is untouched. Review the newer version before saving over it.' }
+                );
             }
             if (state.view === 'today') await global.Today.load();
         });
@@ -537,6 +554,7 @@
         setDocumentFacts,
         setDirty,
         setCursor,
+        renderOpenFiles,
         setProposals(list) {
             state.proposals = list;
         },
@@ -579,7 +597,14 @@
 
         $('window-minimize').addEventListener('click', () => global.Folio.window.minimize());
         $('window-maximize').addEventListener('click', () => global.Folio.window.toggleMaximize());
-        $('window-close').addEventListener('click', () => global.Folio.window.close());
+        $('window-close').addEventListener('click', requestExit);
+
+        await global.Folio.window.onCloseRequested(async (event) => {
+            if (exitAllowed) return;
+            if (!global.DocView.dirtyPaths().length) return;
+            event.preventDefault();
+            await requestExit();
+        });
 
         $('nav-back').addEventListener('click', () => {
             global.Folio.instrument('navigation.back');

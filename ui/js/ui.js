@@ -70,6 +70,7 @@
             choices = [],
             okLabel = 'OK',
             cancelLabel = 'Cancel',
+            alternateLabel = '',
             danger = false,
         } = options || {};
 
@@ -108,9 +109,12 @@
 
         const ok = $('message-dialog-ok-btn');
         const cancel = $('message-dialog-cancel-btn');
+        const alternate = $('message-dialog-alternate-btn');
         ok.textContent = okLabel;
         cancel.textContent = cancelLabel;
+        alternate.textContent = alternateLabel;
         cancel.style.display = kind === 'alert' ? 'none' : '';
+        alternate.style.display = alternateLabel ? '' : 'none';
         ok.classList.toggle('btn-danger', !!danger);
 
         dialogOverlay.classList.add('active');
@@ -148,6 +152,13 @@
 
         confirm: (text, options) =>
             messageDialog(Object.assign({ text, kind: 'confirm' }, options)).then((v) => v !== null),
+
+        saveDiscardCancel: (text, options) => messageDialog(Object.assign({
+            text,
+            kind: 'confirm',
+            okLabel: 'Save',
+            alternateLabel: "Don't Save",
+        }, options)).then((value) => value === true ? 'save' : value),
 
         prompt: (text, options) => messageDialog(Object.assign({ text, kind: 'prompt' }, options)),
 
@@ -403,6 +414,9 @@
         });
         $('message-dialog-cancel-btn').addEventListener('click', () => {
             if (messageResolver) messageResolver(null);
+        });
+        $('message-dialog-alternate-btn').addEventListener('click', () => {
+            if (messageResolver) messageResolver('discard');
         });
         $('message-dialog-input').addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && messageResolver) messageResolver(currentMessageValue());

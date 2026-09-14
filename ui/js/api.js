@@ -155,6 +155,10 @@
 
         /** Window controls, so the title bar works without native decorations. */
         window: {
+            async onCloseRequested(handler) {
+                if (!tauri || !tauri.window) return null;
+                return tauri.window.getCurrentWindow().onCloseRequested(handler);
+            },
             async minimize() {
                 if (tauri && tauri.window) await tauri.window.getCurrentWindow().minimize();
             },

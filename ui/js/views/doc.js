@@ -17,6 +17,8 @@
     let caretTimer = null;
     let trackingSource = null;
     let editorSelection = { from: 0, to: 0, empty: true };
+    const buffers = new Map();
+    const savingPaths = new Set();
 
     const view = {
         path: null,
@@ -48,6 +50,7 @@
                         view.dirty = true;
                         app.setDirty(true);
                     }
+                    rememberCurrent(text);
                     schedulePreview(text);
                     scheduleValidate();
                 },
@@ -265,51 +268,71 @@
     // Loading
     // -----------------------------------------------------------------------
 
+    function rememberCurrent(content) {
+        if (!view.path || !view.dirty) return;
+        const previous = buffers.get(view.path);
+        buffers.set(view.path, {
+            doc: view.doc,
+            content: content == null ? editor.getValue() : content,
+            diskChanged: !!(previous && previous.diskChanged),
+        });
+    }
+
+    async function showDocument(doc, content, dirty, keepScroll) {
+        view.path = doc.path;
+        view.doc = doc;
+        view.dirty = dirty;
+        view.picked = [];
+        view.comments = [];
+        app.setDirty(dirty);
+
+        view.suppressChange = true;
+        editor.setValue(content, { preserveCursor: keepScroll });
+        editor.setEditable(doc.type !== 'asset');
+        view.suppressChange = false;
+
+        renderPreview(content);
+        app.setDocument(doc);
+        await Promise.all([refreshTimeline(), refreshComments(), refreshValidation()]);
+    }
+
     async function open(path, options) {
         const { keepScroll = false } = options || {};
         ensureEditor();
-
-        if (view.dirty && view.path && view.path !== path) {
-            const choice = await global.UI.confirm(
-                'You have unsaved changes in ' + view.doc.display + '. Save them first?',
-                { title: 'Unsaved changes', okLabel: 'Save', cancelLabel: 'Discard' }
-            );
-            if (choice) await save();
-        }
+        rememberCurrent();
 
         try {
+            const buffered = buffers.get(path);
+            if (buffered) {
+                await showDocument(buffered.doc, buffered.content, true, keepScroll);
+                return;
+            }
             const doc = await global.Folio.call('read_doc', { path });
-            view.path = doc.path;
-            view.doc = doc;
-            view.dirty = false;
-            view.picked = [];
-            view.comments = [];
-            app.setDirty(false);
-
-            view.suppressChange = true;
-            editor.setValue(doc.content, { preserveCursor: keepScroll });
-            editor.setEditable(doc.type !== 'asset');
-            view.suppressChange = false;
-
-            renderPreview(doc.content);
-            app.setDocument(doc);
-
-            await Promise.all([refreshTimeline(), refreshComments(), refreshValidation()]);
+            await showDocument(doc, doc.content, false, keepScroll);
         } catch (e) {
             global.UI.error(e, 'Could not open the document');
         }
     }
 
-    async function prepareToClose() {
-        if (!view.dirty) return true;
+    async function prepareToClose(path) {
+        const target = path || view.path;
+        if (!isDirty(target)) return true;
+        const buffer = target === view.path
+            ? { doc: view.doc }
+            : buffers.get(target);
         const saveFirst = await global.UI.confirm(
-            'You have unsaved changes in ' + view.doc.display + '. Save them before closing?',
+            'You have unsaved changes in ' + buffer.doc.display + '. Save them before closing?',
             { title: 'Unsaved changes', okLabel: 'Save', cancelLabel: 'Discard' }
         );
-        if (saveFirst) return save();
+        if (saveFirst) return save(target);
         else {
-            view.dirty = false;
-            app.setDirty(false);
+            buffers.delete(target);
+            if (target === view.path) {
+                view.dirty = false;
+                app.setDirty(false);
+            } else {
+                app.renderOpenFiles();
+            }
             return true;
         }
     }
@@ -324,6 +347,7 @@
         view.validation = null;
         view.dirty = false;
         view.picked = [];
+        buffers.clear();
         pendingSelection = null;
 
         view.suppressChange = true;
@@ -776,27 +800,95 @@
     // Actions
     // -----------------------------------------------------------------------
 
-    async function save() {
-        if (!view.path) return false;
+    function isDirty(path) {
+        const target = path || view.path;
+        return !!target && (target === view.path ? view.dirty : buffers.has(target));
+    }
+
+    async function save(path) {
+        const target = path || view.path;
+        if (!target) return false;
+        rememberCurrent();
+        const buffer = buffers.get(target);
+        const content = target === view.path ? editor.getValue() : buffer && buffer.content;
+        if (content == null) return true;
+
+        if (buffer && buffer.diskChanged) {
+            const overwrite = await global.UI.confirm(
+                buffer.doc.display + ' changed on disk after your edits began. ' +
+                'Saving will preserve that version in the timeline, then replace the file with your buffer.',
+                { title: 'Newer version on disk', okLabel: 'Save Anyway', cancelLabel: 'Cancel' }
+            );
+            if (!overwrite) return false;
+        }
+
         try {
+            savingPaths.add(target);
             const result = await global.Folio.call('save_doc', {
-                path: view.path,
-                content: editor.getValue(),
+                path: target,
+                content,
             });
-            view.dirty = false;
-            app.setDirty(false);
+            buffers.delete(target);
+            if (target === view.path) {
+                view.dirty = false;
+                app.setDirty(false);
+            } else {
+                app.renderOpenFiles();
+            }
             if (result.created) {
                 global.UI.status('Saved · version ' + result.snapshot.id);
             } else {
                 global.UI.status('No change — no new version');
             }
-            await Promise.all([refreshTimeline(), refreshValidation(), refreshComments()]);
+            if (target === view.path) {
+                await Promise.all([refreshTimeline(), refreshValidation(), refreshComments()]);
+            }
             app.refreshDocs();
             return true;
         } catch (e) {
             global.UI.error(e, 'Could not save');
             return false;
+        } finally {
+            savingPaths.delete(target);
         }
+    }
+
+    async function prepareToExit() {
+        rememberCurrent();
+        const paths = Array.from(buffers.keys());
+        if (!paths.length) return true;
+        const label = paths.length === 1
+            ? buffers.get(paths[0]).doc.display
+            : paths.length + ' documents';
+        const choice = await global.UI.saveDiscardCancel(
+            'Save changes to ' + label + ' before exiting?',
+            { title: 'Unsaved changes', okLabel: paths.length === 1 ? 'Save' : 'Save All' }
+        );
+        if (choice === null) return false;
+        if (choice === 'discard') return true;
+        for (const path of paths) {
+            if (!(await save(path))) return false;
+        }
+        return true;
+    }
+
+    /** Preserve dirty buffers when a newer version arrives; clean tabs can reload from disk. */
+    async function handleSnapshot(snapshot) {
+        if (!snapshot || !snapshot.path || savingPaths.has(snapshot.path)) return false;
+        if (!isDirty(snapshot.path)) {
+            if (snapshot.path === view.path) await reloadIfClean();
+            return false;
+        }
+        if (snapshot.path === view.path) rememberCurrent();
+        const buffer = buffers.get(snapshot.path);
+        if (buffer) buffer.diskChanged = true;
+        return true;
+    }
+
+    async function reloadIfClean() {
+        if (!view.path || view.dirty) return false;
+        await open(view.path, { keepScroll: true });
+        return true;
     }
 
     async function checkpoint() {
@@ -935,6 +1027,7 @@
 
         open,
         prepareToClose,
+        prepareToExit,
         clear,
         save,
         checkpoint,
@@ -945,18 +1038,18 @@
         toggleDrawer,
         openDrawer,
         showFind,
-        isDirty: () => view.dirty,
+        isDirty,
+        dirtyPaths: () => {
+            rememberCurrent();
+            return Array.from(buffers.keys());
+        },
+        handleSnapshot,
         path: () => view.path,
         current: () => view.doc,
         refresh: async () => {
             if (view.path) await Promise.all([refreshTimeline(), refreshComments(), refreshValidation()]);
         },
-        /** Re-read from disk after an external change, unless the user is mid-edit. */
-        async reloadIfClean() {
-            if (!view.path || view.dirty) return false;
-            await open(view.path, { keepScroll: true });
-            return true;
-        },
+        reloadIfClean,
         resolveFocusedComment() {
             const openThread = view.comments.find((c) => c.status === 'open' || c.status === 'outdated');
             if (!openThread) {

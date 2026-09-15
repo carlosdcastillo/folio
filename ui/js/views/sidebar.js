@@ -71,6 +71,9 @@
             const inbox = $('review-inbox');
             inbox.hidden = pending === 0;
             $('review-inbox-count').textContent = String(pending);
+            // The central onboarding action is the clearer first step. Once a
+            // corpus exists, keep the sidebar action available for expansion.
+            $('sidebar-add-root').hidden = state.roots.length === 0;
 
             if (!state.roots.length) {
                 const empty = el('div', 'sidebar-empty');

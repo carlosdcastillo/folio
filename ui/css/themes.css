@@ -2,35 +2,38 @@
 :root {
     /* Dark theme (default) */
     color-scheme: dark;
-    --bg-primary: #1e1e1e;
-    --bg-secondary: #252526;
-    --bg-tertiary: #2d2d30;
-    --bg-hover: #3c3c3c;
-    --bg-active: #094771;
-    --bg-input: #3c3c3c;
+    --bg-primary: #181a1f;
+    --bg-secondary: #20232a;
+    --bg-tertiary: #292d36;
+    --bg-hover: #333845;
+    --bg-active: #1d3f5b;
+    --bg-input: #252932;
 
-    --text-primary: #cccccc;
-    --text-secondary: #858585;
-    --text-muted: #6e6e6e;
+    --text-primary: #e2e5ea;
+    --text-secondary: #b3bac6;
+    --text-muted: #8b94a3;
     --text-highlight: #ffffff;
 
-    --border-color: #3e3e42;
-    --border-light: #505050;
+    --border-color: #343945;
+    --border-light: #4a5160;
 
-    --accent-primary: #007acc;
-    --accent-hover: #1177bb;
-    --accent-secondary: #264f78;
+    --accent-primary: #3b93d1;
+    --accent-hover: #57a6dd;
+    --accent-secondary: #1d3f5b;
+    --accent-contrast: #101820;
 
-    --success-color: #4ec9b0;
-    --warning-color: #cca700;
-    --error-color: #f48771;
+    --success-color: #68c7ad;
+    --warning-color: #e2b84b;
+    --error-color: #ef8c7c;
+    --danger-bg: #b84a3a;
+    --danger-hover: #cf5a49;
 
-    --fold-bg: #2d2d30;
-    --fold-border: #3e3e42;
-    --fold-body-bg: #1e1e1e;
+    --fold-bg: #292d36;
+    --fold-border: #343945;
+    --fold-body-bg: #181a1f;
 
-    --code-bg: #1e1e1e;
-    --code-border: #3e3e42;
+    --code-bg: #181a1f;
+    --code-border: #343945;
 
     --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
     --font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -45,28 +48,31 @@
 /* Light theme */
 [data-theme="light"] {
     color-scheme: light;
-    --bg-primary: #ffffff;
-    --bg-secondary: #f3f3f3;
-    --bg-tertiary: #e8e8e8;
-    --bg-hover: #e0e0e0;
-    --bg-active: #cce4f7;
+    --bg-primary: #f7f8fa;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #eef1f5;
+    --bg-hover: #e5e9ef;
+    --bg-active: #dcecf8;
     --bg-input: #ffffff;
 
-    --text-primary: #333333;
-    --text-secondary: #666666;
-    --text-muted: #999999;
-    --text-highlight: #000000;
+    --text-primary: #20242b;
+    --text-secondary: #5c6470;
+    --text-muted: #7c8592;
+    --text-highlight: #111318;
 
-    --border-color: #e0e0e0;
-    --border-light: #d0d0d0;
+    --border-color: #dce1e8;
+    --border-light: #c7ced8;
 
-    --accent-primary: #0078d4;
-    --accent-hover: #106ebe;
-    --accent-secondary: #deecf9;
+    --accent-primary: #096fae;
+    --accent-hover: #075d93;
+    --accent-secondary: #dcecf8;
+    --accent-contrast: #ffffff;
 
-    --success-color: #107c10;
-    --warning-color: #ffc107;
-    --error-color: #d32f2f;
+    --success-color: #287a55;
+    --warning-color: #8a6500;
+    --error-color: #b33b30;
+    --danger-bg: #b33b30;
+    --danger-hover: #982f27;
 
     --fold-bg: #f5f5f5;
     --fold-border: #e0e0e0;

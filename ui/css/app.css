@@ -36,6 +36,14 @@ button, input, select, textarea {
     font-family: inherit;
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
 #app {
     display: flex;
     flex-direction: column;
@@ -159,9 +167,9 @@ html[data-platform="macos"] .menu-bar {
     white-space: nowrap;
 }
 
-.menu-item:hover { background: var(--accent-primary); color: #fff; }
+.menu-item:hover { background: var(--accent-primary); color: var(--accent-contrast); }
 .menu-item .shortcut { font-size: 11px; color: var(--text-muted); margin-left: 24px; }
-.menu-item:hover .shortcut { color: rgba(255, 255, 255, 0.8); }
+.menu-item:hover .shortcut { color: var(--accent-contrast); }
 .menu-item[disabled] { opacity: 0.4; cursor: default; }
 .menu-item[disabled]:hover { background: transparent; color: var(--text-primary); }
 
@@ -199,7 +207,7 @@ html[data-platform="macos"] .menu-bar {
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     white-space: nowrap;
 }
 
@@ -282,8 +290,8 @@ html[data-platform="macos"] .menu-bar {
 
 .view-switch .view-btn.active {
     background: var(--bg-active);
-    color: var(--text-highlight);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), inset 0 -2px 0 var(--accent-primary);
+    color: var(--text-primary);
+    box-shadow: inset 0 -2px 0 var(--accent-primary);
 }
 
 .view-btn-secondary.active {
@@ -418,8 +426,8 @@ html[data-platform="macos"] .menu-bar {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    width: 268px;
-    flex: 0 0 268px;
+    width: 248px;
+    flex: 0 0 248px;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
     padding: 8px 10px 10px;
@@ -475,7 +483,7 @@ html[data-platform="macos"] .menu-bar {
     text-align: left;
 }
 
-.review-inbox:hover { background: var(--accent-primary); color: #fff; }
+.review-inbox:hover { background: var(--accent-primary); color: var(--accent-contrast); }
 .review-inbox[hidden] { display: none; }
 .review-inbox-icon { color: var(--warning-color); font-size: 10px; }
 .review-inbox-label { flex: 1; }
@@ -561,8 +569,8 @@ html[data-platform="macos"] .menu-bar {
 .doc-row:hover:not(.active) { background: var(--bg-hover); }
 
 .doc-row.active {
-    background: var(--bg-active);
-    border-color: var(--accent-secondary);
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
     font-weight: 600;
     box-shadow: inset 3px 0 0 var(--accent-primary);
 }
@@ -587,7 +595,7 @@ html[data-platform="macos"] .menu-bar {
     padding: 0 5px;
     border-radius: 8px;
     background: var(--accent-primary);
-    color: #fff;
+    color: var(--accent-contrast);
     font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 700;
@@ -601,7 +609,7 @@ html[data-platform="macos"] .menu-bar {
     margin-top: 8px;
     padding: 6px 10px;
     background: transparent;
-    border: 1px dashed var(--border-light);
+    border: 1px solid var(--border-light);
     border-radius: 5px;
     color: var(--text-secondary);
     font-size: 12px;
@@ -611,7 +619,7 @@ html[data-platform="macos"] .menu-bar {
 .sidebar-add-root:hover { background: var(--bg-hover); color: var(--text-primary); }
 
 .sidebar-empty {
-    padding: 24px 12px;
+    padding: 20px 10px;
     color: var(--text-secondary);
     font-size: 12px;
     line-height: 1.6;
@@ -861,7 +869,7 @@ html[data-platform="macos"] .menu-bar {
     display: none;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 10px;
     width: 90%;
     max-width: 520px;
     max-height: 90vh;
@@ -936,18 +944,25 @@ html[data-platform="macos"] .menu-bar {
 
 .btn-primary, .btn-secondary {
     padding: 8px 16px;
-    border-radius: 4px;
+    border-radius: 5px;
     font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    border: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.btn-primary { background: var(--accent-primary); color: #fff; }
+.btn-primary { background: var(--accent-primary); border: 1px solid var(--accent-primary); color: var(--accent-contrast); }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: default; }
 .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); }
-.btn-secondary:hover { background: var(--bg-hover); }
-.btn-danger { color: var(--error-color); }
+.btn-secondary:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-light); }
+.btn-secondary:disabled { opacity: 0.5; cursor: default; }
+.btn-primary.btn-danger {
+    background: var(--danger-bg);
+    border-color: var(--danger-bg);
+    color: #fff;
+}
+.btn-primary.btn-danger:hover { background: var(--danger-hover); border-color: var(--danger-hover); }
 
 .pref-section { margin-bottom: 20px; }
 
@@ -1175,13 +1190,22 @@ html[data-platform="macos"] .menu-bar {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 40px;
+    padding: 40px 24px 12vh;
     color: var(--text-secondary);
     text-align: center;
 }
 
 .empty-state h2 { color: var(--text-primary); font-size: 18px; font-weight: 600; }
-.empty-state p { font-size: 13px; max-width: 46ch; line-height: 1.7; }
+.empty-state p { font-size: 13px; max-width: 42ch; line-height: 1.7; }
+.empty-state code {
+    padding: 1px 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+}
 
 /* -- Findings strip -------------------------------------------------------- */
 
@@ -1225,7 +1249,7 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
     white-space: nowrap;
 }
 
-.comment-bubble-btn:hover { background: var(--accent-primary); color: #fff; }
+.comment-bubble-btn:hover { background: var(--accent-primary); color: var(--accent-contrast); }
 
 .preview-anchor {
     border-bottom: 2px solid var(--warning-color);
@@ -1343,7 +1367,7 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
 }
 
 .timeline-row:hover { background: var(--bg-hover); }
-.timeline-row.selected { background: var(--accent-secondary); border-color: var(--accent-primary); }
+.timeline-row.selected { background: var(--bg-tertiary); border-color: var(--border-light); box-shadow: inset 3px 0 0 var(--accent-primary); }
 .timeline-row.current { font-weight: 600; }
 
 .timeline-pick {
@@ -1589,6 +1613,7 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
 }
 
 .hunk-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.hunk-btn.active-filter { background: var(--bg-active); border-color: var(--accent-primary); color: var(--text-primary); }
 .hunk-btn.chosen-accept { background: rgba(78, 201, 176, 0.2); border-color: var(--success-color); color: var(--success-color); }
 .hunk-btn.chosen-reject { background: rgba(244, 135, 113, 0.2); border-color: var(--error-color); color: var(--error-color); }
 
@@ -1717,7 +1742,12 @@ body.review-mode .review-footer { padding: 14px max(24px, calc((100% - 1192px) /
 }
 
 .review-row:hover { background: var(--bg-hover); }
-.review-row.active { background: var(--accent-secondary); border-color: var(--accent-primary); color: var(--text-highlight); }
+.review-row.active {
+    background: var(--bg-tertiary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+    box-shadow: inset 3px 0 0 var(--accent-primary);
+}
 
 .review-row-badge {
     width: 18px;
@@ -1748,7 +1778,7 @@ body.review-mode .review-footer { padding: 14px max(24px, calc((100% - 1192px) /
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }
-.review-row.active .review-row-meta { color: var(--text-highlight); }
+.review-row.active .review-row-meta { color: var(--text-secondary); }
 .review-row-counts { flex-shrink: 0; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
 
 .review-detail {

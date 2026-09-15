@@ -48,7 +48,7 @@
         const filters = el('div', 'review-actions');
         filters.style.padding = '2px 4px 8px';
         for (const [value, label] of [['open', 'Open'], ['rejected', 'Rejected'], ['accepted', 'Accepted'], ['all', 'All']]) {
-            const button = el('button', 'hunk-btn' + (statusFilter === value ? ' chosen-accept' : ''), label);
+            const button = el('button', 'hunk-btn' + (statusFilter === value ? ' active-filter' : ''), label);
             button.type = 'button';
             button.addEventListener('click', async () => {
                 statusFilter = value;

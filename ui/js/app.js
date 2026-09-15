@@ -147,6 +147,7 @@
 
         $('doc-title').textContent = doc.display;
         $('doc-title').title = doc.path;
+        $('doc-path-copy').disabled = false;
         const chip = $('doc-type-chip');
         chip.hidden = false;
         chip.className = 'type-chip type-chip--' + doc.type;
@@ -229,6 +230,7 @@
         $('doc-title').textContent = 'No document open';
         $('doc-title').title = '';
         $('doc-title').classList.remove('dirty');
+        $('doc-path-copy').disabled = true;
         $('doc-type-chip').hidden = true;
         $('doc-facts').textContent = '';
         $('window-title').textContent = 'Folio';
@@ -617,6 +619,14 @@
         $('toolbar-new-doc').addEventListener('click', () => {
             global.Folio.instrument('action.new-doc');
             global.Prefs.openNewDoc();
+        });
+        $('doc-path-copy').addEventListener('click', async () => {
+            if (!state.currentPath) return;
+            global.Folio.instrument('action.copy-full-file-name');
+            const ok = await global.Folio.copyToClipboard(state.currentPath);
+            global.UI.toast(ok ? 'Full file name copied.' : 'Could not reach the clipboard.', {
+                type: ok ? 'success' : 'error',
+            });
         });
         for (const button of document.querySelectorAll('.view-btn')) {
             button.addEventListener('click', () => {

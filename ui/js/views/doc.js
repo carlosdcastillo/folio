@@ -75,6 +75,12 @@
         if (!view.previewOn) return;
         clearTimeout(previewTimer);
         previewTimer = setTimeout(() => {
+            const rendered = $('preview')._folioSource || '';
+            // While a fence is being typed or edited, Marked treats an
+            // incomplete opener as code through EOF. Keep the last stable
+            // preview instead of flashing the rest of the document as code.
+            if (!global.Markdown.hasUnclosedFence(rendered)
+                && global.Markdown.hasUnclosedFence(text)) return;
             renderPreview(text);
         }, 120);
     }

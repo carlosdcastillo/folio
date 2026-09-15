@@ -154,6 +154,36 @@
         }
     }
 
+    /** Whether Marked had to carry a fenced code block through end-of-input. */
+    function hasUnclosedFence(text) {
+        if (!hasMarked) return false;
+
+        function containsUnclosed(tokens) {
+            for (const token of tokens || []) {
+                if (token.type === 'code' && token.codeBlockStyle !== 'indented') {
+                    const lines = (token.raw || '').split(/\r?\n/);
+                    const opener = lines[0].match(/^ {0,3}(`{3,}|~{3,})/);
+                    if (opener) {
+                        const marker = opener[1][0];
+                        const minimum = opener[1].length;
+                        const closed = lines.slice(1).some((line) => {
+                            const match = line.match(/^ {0,3}(`+|~+)[ \t]*$/);
+                            return match && match[1][0] === marker && match[1].length >= minimum;
+                        });
+                        if (!closed) return true;
+                    }
+                }
+                if (containsUnclosed(token.tokens)) return true;
+                for (const item of token.items || []) {
+                    if (containsUnclosed(item.tokens)) return true;
+                }
+            }
+            return false;
+        }
+
+        return containsUnclosed(marked.lexer(String(text || '')));
+    }
+
     function setSourceRange(element, start, end) {
         element.dataset.sourceStart = String(start);
         element.dataset.sourceEnd = String(end);
@@ -592,6 +622,7 @@
         },
 
         stripFrontmatter,
+        hasUnclosedFence,
         mapRange,
         mapPoint,
         mapOffset,

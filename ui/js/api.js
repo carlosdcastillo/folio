@@ -165,8 +165,8 @@
             async toggleMaximize() {
                 if (tauri && tauri.window) await tauri.window.getCurrentWindow().toggleMaximize();
             },
-            async close() {
-                if (tauri && tauri.window) await tauri.window.getCurrentWindow().close();
+            async quit() {
+                if (invoke) await invoke('folio_quit');
             },
             async setTitle(title) {
                 if (tauri && tauri.window) await tauri.window.getCurrentWindow().setTitle(title);

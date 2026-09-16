@@ -183,20 +183,12 @@
     }
 
     let exitPending = false;
-    let exitAllowed = false;
-
     async function requestExit() {
         if (exitPending) return;
         exitPending = true;
         try {
             if (await global.DocView.prepareToExit()) {
-                exitAllowed = true;
-                try {
-                    await global.Folio.window.close();
-                } catch (error) {
-                    exitAllowed = false;
-                    throw error;
-                }
+                await global.Folio.window.quit();
             }
         } finally {
             exitPending = false;
@@ -602,7 +594,6 @@
         $('window-close').addEventListener('click', requestExit);
 
         await global.Folio.window.onCloseRequested(async (event) => {
-            if (exitAllowed) return;
             if (!global.DocView.dirtyPaths().length) return;
             event.preventDefault();
             await requestExit();

@@ -44,6 +44,13 @@ fn folio_boot(state: tauri::State<'_, AppState>) -> Value {
     })
 }
 
+/// Quit the application rather than merely closing its window. On macOS,
+/// closing the last window leaves the application running.
+#[tauri::command]
+fn folio_quit(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 pub fn run() -> i32 {
     let folio = match Folio::open_default() {
         Ok(folio) => folio,
@@ -70,7 +77,7 @@ pub fn run() -> i32 {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(state)
-        .invoke_handler(tauri::generate_handler![folio_call, folio_boot])
+        .invoke_handler(tauri::generate_handler![folio_call, folio_boot, folio_quit])
         .setup(move |app| {
             let handle = app.handle().clone();
 

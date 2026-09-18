@@ -69,22 +69,28 @@ const codeLanguages = [
 const v = (name, fallback) => `var(${name}, ${fallback})`;
 
 const folioHighlight = HighlightStyle.define([
-    { tag: tags.heading1, color: v('--text-highlight', '#fff'), fontWeight: '700', fontSize: '1.15em' },
-    { tag: tags.heading2, color: v('--text-highlight', '#fff'), fontWeight: '700' },
-    { tag: [tags.heading3, tags.heading4, tags.heading5, tags.heading6], color: v('--text-highlight', '#fff'), fontWeight: '600' },
+    { tag: tags.heading1, color: v('--syntax-heading', '#79c0ff'), fontWeight: '700', fontSize: '1.15em' },
+    { tag: tags.heading2, color: v('--syntax-heading', '#79c0ff'), fontWeight: '700' },
+    { tag: [tags.heading3, tags.heading4, tags.heading5, tags.heading6], color: v('--syntax-heading', '#79c0ff'), fontWeight: '600' },
     { tag: tags.strong, fontWeight: '700', color: v('--text-highlight', '#fff') },
     { tag: tags.emphasis, fontStyle: 'italic' },
     { tag: tags.strikethrough, textDecoration: 'line-through' },
     { tag: tags.link, color: v('--accent-primary', '#007acc') },
     { tag: tags.url, color: v('--accent-primary', '#007acc'), textDecoration: 'underline' },
-    { tag: tags.monospace, color: v('--success-color', '#4ec9b0') },
+    { tag: tags.monospace, color: v('--syntax-string', '#a5d6ff') },
     { tag: tags.quote, color: v('--text-secondary', '#858585'), fontStyle: 'italic' },
     { tag: tags.contentSeparator, color: v('--border-light', '#505050') },
-    { tag: tags.processingInstruction, color: v('--text-muted', '#6e6e6e') },
-    { tag: tags.keyword, color: v('--accent-primary', '#007acc') },
-    { tag: tags.atom, color: v('--warning-color', '#cca700') },
-    { tag: tags.string, color: v('--success-color', '#4ec9b0') },
-    { tag: tags.comment, color: v('--text-muted', '#6e6e6e'), fontStyle: 'italic' },
+    { tag: [tags.processingInstruction, tags.meta, tags.annotation], color: v('--syntax-keyword', '#ff7b72') },
+    { tag: [tags.keyword, tags.self, tags.modifier], color: v('--syntax-keyword', '#ff7b72'), fontWeight: '600' },
+    { tag: [tags.typeName, tags.className, tags.namespace], color: v('--syntax-type', '#d2a8ff') },
+    { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: v('--syntax-function', '#d2a8ff') },
+    { tag: [tags.propertyName, tags.attributeName, tags.labelName], color: v('--syntax-property', '#79c0ff') },
+    { tag: [tags.string, tags.character, tags.regexp, tags.attributeValue], color: v('--syntax-string', '#a5d6ff') },
+    { tag: [tags.atom, tags.bool, tags.number, tags.constant(tags.variableName)], color: v('--syntax-constant', '#79c0ff') },
+    { tag: [tags.standard(tags.variableName), tags.standard(tags.propertyName), tags.macroName], color: v('--syntax-built-in', '#ffa657') },
+    { tag: tags.tagName, color: v('--syntax-tag', '#7ee787') },
+    { tag: tags.comment, color: v('--syntax-comment', '#8b949e'), fontStyle: 'italic' },
+    { tag: tags.invalid, color: v('--error-color', '#ff7b72'), textDecoration: 'underline wavy' },
 ]);
 
 const folioTheme = EditorView.theme({

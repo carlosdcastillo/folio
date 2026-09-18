@@ -1,0 +1,83 @@
+/* Slate syntax theme for highlight.js. The same variables drive CodeMirror. */
+pre code.hljs { display: block; overflow-x: auto; padding: 1em; }
+code.hljs { padding: 3px 5px; }
+
+.hljs,
+.hljs-subst {
+    color: var(--syntax-text);
+    background: var(--code-bg);
+}
+
+.hljs-doctag,
+.hljs-keyword,
+.hljs-meta .hljs-keyword,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-variable.language_ {
+    color: var(--syntax-keyword);
+    font-weight: 600;
+}
+
+.hljs-type,
+.hljs-class,
+.hljs-title.class_,
+.hljs-title.class_.inherited__ {
+    color: var(--syntax-type);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-title.function {
+    color: var(--syntax-function);
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id,
+.hljs-variable {
+    color: var(--syntax-property);
+}
+
+.hljs-meta .hljs-string,
+.hljs-regexp,
+.hljs-string {
+    color: var(--syntax-string);
+}
+
+.hljs-literal,
+.hljs-number,
+.hljs-operator {
+    color: var(--syntax-constant);
+}
+
+.hljs-built_in,
+.hljs-symbol,
+.hljs-bullet {
+    color: var(--syntax-built-in);
+}
+
+.hljs-name,
+.hljs-selector-pseudo,
+.hljs-selector-tag {
+    color: var(--syntax-tag);
+}
+
+.hljs-code,
+.hljs-comment,
+.hljs-formula,
+.hljs-quote {
+    color: var(--syntax-comment);
+    font-style: italic;
+}
+
+.hljs-meta { color: var(--syntax-keyword); }
+.hljs-params { color: var(--syntax-text); }
+.hljs-section { color: var(--syntax-heading); font-weight: 700; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+.hljs-link:hover { text-decoration: underline; }
+.hljs-addition { color: var(--success-color); background: rgba(46, 160, 67, 0.15); }
+.hljs-deletion { color: var(--error-color); background: rgba(248, 81, 73, 0.15); }

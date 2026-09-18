@@ -1,39 +1,51 @@
 /* Theme Variables */
 :root {
-    /* Dark theme (default) */
+    /* Slate Dark (default) */
     color-scheme: dark;
-    --bg-primary: #181a1f;
-    --bg-secondary: #20232a;
-    --bg-tertiary: #292d36;
-    --bg-hover: #333845;
-    --bg-active: #1d3f5b;
-    --bg-input: #252932;
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-hover: #30363d;
+    --bg-active: #1f3b5b;
+    --bg-input: #0d1117;
 
-    --text-primary: #e2e5ea;
-    --text-secondary: #b3bac6;
-    --text-muted: #8b94a3;
-    --text-highlight: #ffffff;
+    --text-primary: #e6edf3;
+    --text-secondary: #b1bac4;
+    --text-muted: #8b949e;
+    --text-highlight: #f0f6fc;
 
-    --border-color: #343945;
-    --border-light: #4a5160;
+    --border-color: #30363d;
+    --border-light: #484f58;
 
-    --accent-primary: #3b93d1;
-    --accent-hover: #57a6dd;
-    --accent-secondary: #1d3f5b;
-    --accent-contrast: #101820;
+    --accent-primary: #58a6ff;
+    --accent-hover: #79c0ff;
+    --accent-secondary: #1f3b5b;
+    --accent-contrast: #0d1117;
 
-    --success-color: #68c7ad;
-    --warning-color: #e2b84b;
-    --error-color: #ef8c7c;
-    --danger-bg: #b84a3a;
-    --danger-hover: #cf5a49;
+    --success-color: #7ee787;
+    --warning-color: #d29922;
+    --error-color: #ff7b72;
+    --danger-bg: #da3633;
+    --danger-hover: #f85149;
 
-    --fold-bg: #292d36;
-    --fold-border: #343945;
-    --fold-body-bg: #181a1f;
+    --fold-bg: #21262d;
+    --fold-border: #30363d;
+    --fold-body-bg: #0d1117;
 
-    --code-bg: #181a1f;
-    --code-border: #343945;
+    --code-bg: #161b22;
+    --code-border: #30363d;
+
+    --syntax-text: #e6edf3;
+    --syntax-heading: #79c0ff;
+    --syntax-keyword: #ff7b72;
+    --syntax-type: #d2a8ff;
+    --syntax-function: #d2a8ff;
+    --syntax-property: #79c0ff;
+    --syntax-string: #a5d6ff;
+    --syntax-constant: #79c0ff;
+    --syntax-built-in: #ffa657;
+    --syntax-tag: #7ee787;
+    --syntax-comment: #8b949e;
 
     --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
     --font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -45,39 +57,51 @@
     --content-font-size: 16px;
 }
 
-/* Light theme */
+/* Slate Light */
 [data-theme="light"] {
     color-scheme: light;
-    --bg-primary: #f7f8fa;
+    --bg-primary: #f8fafc;
     --bg-secondary: #ffffff;
-    --bg-tertiary: #eef1f5;
-    --bg-hover: #e5e9ef;
-    --bg-active: #dcecf8;
+    --bg-tertiary: #eef2f6;
+    --bg-hover: #e7ecf2;
+    --bg-active: #dceafb;
     --bg-input: #ffffff;
 
-    --text-primary: #20242b;
-    --text-secondary: #5c6470;
-    --text-muted: #7c8592;
-    --text-highlight: #111318;
+    --text-primary: #24292f;
+    --text-secondary: #57606a;
+    --text-muted: #6e7781;
+    --text-highlight: #1f2328;
 
-    --border-color: #dce1e8;
-    --border-light: #c7ced8;
+    --border-color: #d8dee4;
+    --border-light: #afb8c1;
 
-    --accent-primary: #096fae;
-    --accent-hover: #075d93;
-    --accent-secondary: #dcecf8;
+    --accent-primary: #0969da;
+    --accent-hover: #0550ae;
+    --accent-secondary: #dbeafe;
     --accent-contrast: #ffffff;
 
-    --success-color: #287a55;
-    --warning-color: #8a6500;
-    --error-color: #b33b30;
-    --danger-bg: #b33b30;
-    --danger-hover: #982f27;
+    --success-color: #1a7f37;
+    --warning-color: #9a6700;
+    --error-color: #cf222e;
+    --danger-bg: #cf222e;
+    --danger-hover: #a40e26;
 
-    --fold-bg: #f5f5f5;
-    --fold-border: #e0e0e0;
+    --fold-bg: #f6f8fa;
+    --fold-border: #d0d7de;
     --fold-body-bg: #ffffff;
 
-    --code-bg: #f5f5f5;
-    --code-border: #e0e0e0;
+    --code-bg: #f6f8fa;
+    --code-border: #d0d7de;
+
+    --syntax-text: #24292f;
+    --syntax-heading: #0550ae;
+    --syntax-keyword: #cf222e;
+    --syntax-type: #8250df;
+    --syntax-function: #0550ae;
+    --syntax-property: #953800;
+    --syntax-string: #0a3069;
+    --syntax-constant: #0550ae;
+    --syntax-built-in: #953800;
+    --syntax-tag: #116329;
+    --syntax-comment: #636c76;
 }

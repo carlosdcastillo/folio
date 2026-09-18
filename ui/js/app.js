@@ -38,8 +38,6 @@
         state.theme = theme === 'light' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', state.theme);
         document.querySelector('meta[name="color-scheme"]').content = state.theme;
-        // highlight.js ships one stylesheet per theme; swap it with the app's.
-        $('hljs-theme').href = state.theme === 'light' ? 'lib/github.min.css' : 'lib/nord.min.css';
         try { localStorage.setItem('folio.theme', state.theme); } catch (e) { /* ignore */ }
         if (persist) {
             // The shell reads this to paint the window itself in the right

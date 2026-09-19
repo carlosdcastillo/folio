@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="110 110 804 804">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="110 150 804 804">
+  <!-- The lower viewBox origin optically centers the tall folio silhouette. -->
   <!-- Solid fills are deliberate: they stay crisp in 16 px Windows icons and
        render identically with ImageMagick's built-in SVG renderer. -->
   <!-- Warm paper leaves make the object read as a tactile folio, not a file

@@ -15,16 +15,18 @@ import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, "tools", "folio-icon.svg")
+SMALL_SOURCE = os.path.join(ROOT, "tools", "folio-icon-small.svg")
 OUT = os.path.join(ROOT, "crates", "folio-app", "icons")
+WINDOWS_SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256)
 
 
-def render_png(path, size):
+def render_png(path, size, source=SOURCE):
     subprocess.run(
         [
             "magick",
             "-background",
             "none",
-            SOURCE,
+            source,
             "-resize",
             f"{size}x{size}",
             "-depth",
@@ -99,7 +101,7 @@ def main():
         256: "128x128@2x.png",
         1024: "icon.png",
     }
-    for size in (16, 24, 32, 48, 64, 128, 256, 512, 1024):
+    for size in (16, 32, 64, 96, 128, 256, 512, 1024):
         name = names.get(size, f".{size}x{size}.png")
         path = os.path.join(OUT, name)
         images[size] = render_png(path, size)
@@ -108,9 +110,18 @@ def main():
         else:
             print("wrote", name)
 
+    windows_images = {}
+    for size in WINDOWS_SIZES:
+        if size > 64:
+            windows_images[size] = images[size]
+            continue
+        path = os.path.join(OUT, f".{size}x{size}-windows.png")
+        windows_images[size] = render_png(path, size, SMALL_SOURCE)
+        temporary.append(path)
+
     write_ico(
         os.path.join(OUT, "icon.ico"),
-        [(size, images[size]) for size in (16, 24, 32, 48, 64, 128, 256)],
+        [(size, windows_images[size]) for size in WINDOWS_SIZES],
     )
     print("wrote icon.ico")
 

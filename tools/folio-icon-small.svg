@@ -1,22 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <!-- Simplified and aligned to a 64 px grid for Windows title bars, the
-       taskbar, and Explorer. Keep details at least 3 px wide so they survive
-       at the native 16–48 px sizes without looking soft. -->
+       taskbar, and Explorer. Every silhouette edge sits on a multiple of 4 so
+       it lands on a whole pixel at 16, 32, 48, and 64 px, and detail is kept
+       at least 4 px wide so it survives the 20-24 px taskbar sizes. -->
   <!-- Fill the canvas: Windows already supplies spacing around taskbar icons,
        so padding it here makes Folio look undersized beside other apps. -->
-  <rect x="18" y="2" width="41" height="52" rx="5" fill="#d8c7a6"/>
-  <rect x="15" y="4" width="45" height="54" rx="5" fill="#f0e2c5"/>
-  <rect x="11" y="6" width="51" height="55" rx="5" fill="#fff5dd"/>
-  <path d="M12 9h49v6H12z" fill="#fffaf0"/>
+  <!-- Two leaves, not three: at 24 px a third leaf collapses into a sub-pixel
+       cream fringe that reads as blur rather than as paper. -->
+  <rect x="16" y="4" width="44" height="52" rx="6" fill="#d8c7a6"/>
+  <rect x="12" y="8" width="48" height="48" rx="6" fill="#fff5dd"/>
 
-  <rect x="2" y="8" width="54" height="54" rx="8" fill="#173652"/>
-  <path d="M10 8h9v54h-9a8 8 0 0 1-8-8V16a8 8 0 0 1 8-8z" fill="#0e2942"/>
-  <path d="M16 9h4v52h-4z" fill="#315773"/>
+  <rect x="4" y="8" width="52" height="52" rx="8" fill="#173652"/>
+  <path d="M12 8h8v52h-8a8 8 0 0 1-8-8V16a8 8 0 0 1 8-8z" fill="#0e2942"/>
+  <rect x="16" y="8" width="4" height="52" fill="#315773"/>
 
   <!-- Draw the F as geometry rather than text so every build and DPI produces
-       the same bold pixels. -->
-  <path d="M25 24h15v5H31v6h8v5h-8v12h-6V24z" fill="#f0e2c5"/>
+       the same bold pixels. It clears the bookmark so neither eats the other
+       once the arms are down to a pixel or two. -->
+  <path d="M26 22h16v6H32v6h8v6h-8v14h-6V22z" fill="#f0e2c5"/>
 
-  <path d="M43 8h13v28l-6.5-5-6.5 5z" fill="#f08a62"/>
-  <path d="M43 8h13v4H43z" fill="#f5a07c"/>
+  <path d="M46 8h10v24l-5-4-5 4z" fill="#f08a62"/>
+  <path d="M46 8h10v4H46z" fill="#f5a07c"/>
 </svg>

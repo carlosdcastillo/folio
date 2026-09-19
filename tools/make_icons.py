@@ -8,6 +8,7 @@ Run from the repo root:  python tools/make_icons.py
 """
 
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -17,18 +18,43 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, "tools", "folio-icon.svg")
 SMALL_SOURCE = os.path.join(ROOT, "tools", "folio-icon-small.svg")
 OUT = os.path.join(ROOT, "crates", "folio-app", "icons")
-WINDOWS_SIZES = (16, 20, 24, 32, 40, 48, 64, 96, 128, 256)
+# Every size the Windows shell asks for between 100% and 400% display scaling.
+# Anything missing here gets resampled by Explorer from the nearest entry,
+# which is what makes an icon look soft in the taskbar.
+WINDOWS_SIZES = (
+    16, 20, 24, 28, 30, 32, 36, 40, 44, 48,
+    56, 60, 64, 72, 80, 96, 128, 256,
+)
+
+
+def natural_size(source):
+    """The SVG's own width in px, which is the size librsvg renders at 96 dpi."""
+    with open(source, "r", encoding="utf-8") as fh:
+        head = fh.read(2048)
+    match = re.search(r'\bwidth="(\d+(?:\.\d+)?)', head)
+    if match is None:
+        raise SystemExit(f"{source} has no px width attribute to scale from")
+    return float(match.group(1))
 
 
 def render_png(path, size, source=SOURCE):
+    # Rasterise straight from the vector at the target size. Rendering once at
+    # the SVG's natural size and resizing down is what blurred the small
+    # Windows entries: every edge arrived as a resampled gradient instead of a
+    # hard pixel boundary.
+    density = 96.0 * size / natural_size(source)
     subprocess.run(
         [
             "magick",
             "-background",
             "none",
+            "-density",
+            f"{density:.10g}",
             source,
+            # A no-op when the render already lands on `size`; a guard against
+            # off-by-one rounding at fractional densities.
             "-resize",
-            f"{size}x{size}",
+            f"{size}x{size}!",
             "-depth",
             "8",
             "-define",
@@ -112,11 +138,14 @@ def main():
 
     windows_images = {}
     for size in WINDOWS_SIZES:
-        if size > 64:
+        # The simplified art carries the sizes small enough that the full
+        # illustration would turn to mush; above that the detailed one wins.
+        source = SOURCE if size > 64 else SMALL_SOURCE
+        if source is SOURCE and size in images:
             windows_images[size] = images[size]
             continue
         path = os.path.join(OUT, f".{size}x{size}-windows.png")
-        windows_images[size] = render_png(path, size, SMALL_SOURCE)
+        windows_images[size] = render_png(path, size, source)
         temporary.append(path)
 
     write_ico(

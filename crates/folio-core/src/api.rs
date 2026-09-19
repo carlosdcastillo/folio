@@ -120,7 +120,22 @@ impl Folio {
     /// Unchanged files hash to the version already stored and write nothing.
     pub fn index_root(&self, root: &Root) -> Result<usize> {
         let mut indexed = 0usize;
-        for file in corpus::walk_root(root) {
+        for (position, file) in corpus::root_files(root).enumerate() {
+            let is_indexable = root.kind == corpus::RootKind::File
+                || corpus::is_markdown_path(&file.to_string_lossy());
+            // Root removal may race a startup/re-index walk. Check every
+            // document and periodically among ignored files so stale work
+            // stops promptly without querying the database for every asset.
+            if is_indexable || position % 128 == 0 {
+                match corpus::get_root(&self.store, &root.id) {
+                    Ok(_) => {}
+                    Err(Error::NotFound(_)) => break,
+                    Err(e) => return Err(e),
+                }
+            }
+            if !is_indexable {
+                continue;
+            }
             let key = crate::util::canonical_key(&file);
             let resolved = Resolved {
                 root: root.clone(),

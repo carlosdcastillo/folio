@@ -240,6 +240,33 @@ pub fn add_root(store: &Store, input: &str, policy: Policy, label: Option<&str>)
             now_ms(),
         ),
     )?;
+
+    // Removed roots keep their snapshots. Attach history beneath the new root
+    // before indexing so unchanged documents become visible immediately.
+    match kind {
+        RootKind::File => {
+            conn.execute(
+                "UPDATE snapshots SET root_id = ?1 WHERE path_key = ?2",
+                (&id, &fold(&key)),
+            )?;
+        }
+        RootKind::Dir => {
+            let folded = fold(&key);
+            let prefix = if folded.ends_with('/') {
+                folded.clone()
+            } else {
+                format!("{folded}/")
+            };
+            // Replacing the trailing `/` with `0` gives the first key after
+            // all descendants. Unlike LIKE, this also handles root paths
+            // containing `%` or `_` correctly.
+            let upper = format!("{}0", prefix.strip_suffix('/').unwrap_or(&prefix));
+            conn.execute(
+                "UPDATE snapshots SET root_id = ?1 WHERE path_key >= ?2 AND path_key < ?3",
+                (&id, &prefix, &upper),
+            )?;
+        }
+    }
     drop(conn);
     get_root(store, &id)
 }
@@ -452,14 +479,15 @@ fn is_skipped_dir(name: &str) -> bool {
     SKIP_DIRS.iter().any(|d| name.eq_ignore_ascii_case(d))
 }
 
-/// Every Markdown file inside a directory root, in a stable order. A file
-/// root is explicit, so it may still track a non-Markdown asset.
-pub fn walk_root(root: &Root) -> Vec<PathBuf> {
+/// Every regular file beneath a root, excluding ignored directories and
+/// Folio's temporary files. This stays lazy so indexing can stop when a root
+/// is removed instead of completing a now-useless large walk.
+pub(crate) fn root_files(root: &Root) -> Box<dyn Iterator<Item = PathBuf>> {
     let base = to_fs_path(&root.path);
     if root.kind == RootKind::File {
-        return if base.is_file() { vec![base] } else { Vec::new() };
+        return Box::new(if base.is_file() { Some(base) } else { None }.into_iter());
     }
-    let mut out: Vec<PathBuf> = walkdir::WalkDir::new(&base)
+    Box::new(walkdir::WalkDir::new(&base)
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
@@ -475,7 +503,16 @@ pub fn walk_root(root: &Root) -> Vec<PathBuf> {
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
-        .map(|e| e.into_path())
+        .map(|e| e.into_path()))
+}
+
+/// Every Markdown file inside a directory root, in a stable order. A file
+/// root is explicit, so it may still track a non-Markdown asset.
+pub fn walk_root(root: &Root) -> Vec<PathBuf> {
+    if root.kind == RootKind::File {
+        return root_files(root).collect();
+    }
+    let mut out: Vec<PathBuf> = root_files(root)
         .filter(|path| is_markdown_path(&path.to_string_lossy()))
         .collect();
     out.sort();

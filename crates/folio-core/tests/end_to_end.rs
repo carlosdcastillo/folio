@@ -168,6 +168,64 @@ fn a_large_directory_indexes_markdown_without_copying_unrelated_bytes() {
 }
 
 #[test]
+fn replacing_a_removed_root_with_its_subdirectory_reattaches_markdown_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let parent = dir.path().join("corpus");
+    let child = parent.join("notes");
+    std::fs::create_dir_all(&child).unwrap();
+    std::fs::write(child.join("kept.md"), "# Kept\n").unwrap();
+    std::fs::write(parent.join("outside.md"), "# Outside\n").unwrap();
+
+    let folio = Folio::open(&dir.path().join("store")).unwrap();
+    let original = folio
+        .dispatch(&you(), "add_root", &json!({ "path": parent.to_string_lossy() }))
+        .unwrap();
+    folio
+        .dispatch(
+            &you(),
+            "remove_root",
+            &json!({ "id": original["root"]["id"] }),
+        )
+        .unwrap();
+
+    let replacement = folio
+        .dispatch(&you(), "add_root", &json!({ "path": child.to_string_lossy() }))
+        .unwrap();
+    let docs = folio.dispatch(&you(), "list_docs", &json!({})).unwrap();
+    let docs = docs["docs"].as_array().unwrap();
+
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0]["relative"], "kept.md");
+    assert_eq!(docs[0]["root_id"], replacement["root"]["id"]);
+    assert_eq!(docs[0]["versions"], 1, "reattaching must not invent a version");
+
+    let roots = folio.dispatch(&you(), "list_roots", &json!({})).unwrap();
+    assert_eq!(roots["roots"][0]["docs"], 1);
+}
+
+#[test]
+fn an_index_walk_stops_if_its_root_has_been_removed() {
+    let dir = tempfile::tempdir().unwrap();
+    let corpus = dir.path().join("corpus");
+    std::fs::create_dir(&corpus).unwrap();
+
+    let folio = Folio::open(&dir.path().join("store")).unwrap();
+    let added = folio
+        .dispatch(&you(), "add_root", &json!({ "path": corpus.to_string_lossy() }))
+        .unwrap();
+    let root: folio_core::corpus::Root = serde_json::from_value(added["root"].clone()).unwrap();
+    folio
+        .dispatch(&you(), "remove_root", &json!({ "id": root.id }))
+        .unwrap();
+    std::fs::write(corpus.join("late.md"), "# Late\n").unwrap();
+
+    assert_eq!(folio.index_root(&root).unwrap(), 0);
+    assert!(folio_core::version::tracked_paths(&folio.store, None)
+        .unwrap()
+        .is_empty());
+}
+
+#[test]
 fn a_path_escape_is_rejected() {
     let bed = Bed::new();
     for escape in [

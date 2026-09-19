@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="110 110 804 804">
+  <!-- Solid fills are deliberate: they stay crisp in 16 px Windows icons and
+       render identically with ImageMagick's built-in SVG renderer. -->
+  <!-- Warm paper leaves make the object read as a tactile folio, not a file
+       type or platform glyph. -->
+  <rect x="315" y="205" width="480" height="630" rx="76" fill="#d8c7a6"/>
+  <rect x="285" y="229" width="526" height="630" rx="76" fill="#f0e2c5"/>
+  <rect x="259" y="253" width="562" height="630" rx="76" fill="#fff5dd"/>
+  <path d="M290 282h500c17 0 31 14 31 31v45H290v-76Z" fill="#fffaf0"/>
+
+  <!-- Ink-blue cover and darker bound spine. -->
+  <rect x="198" y="275" width="582" height="624" rx="88" fill="#091725" opacity=".55"/>
+  <path d="M286 256h410c49 0 89 40 89 89v452c0 49-40 89-89 89H286c-49 0-89-40-89-89V345c0-49 40-89 89-89Z" fill="#173652" stroke="#315773" stroke-width="7"/>
+  <path d="M286 256h55v630h-55c-49 0-89-40-89-89V345c0-49 40-89 89-89Z" fill="#0e2942"/>
+  <path d="M334 275h346c47 0 85 38 85 85v415c0 47-38 85-85 85H334V275Z" fill="#15314c"/>
+  <path d="M304 275h17v585h-17c-37 0-67-30-67-67V342c0-37 30-67 67-67Z" fill="#244966" opacity=".65"/>
+
+  <!-- A review bookmark is the only accent; its notch stays visible at 16 px. -->
+  <path d="M647 257h112c17 0 31 14 31 31v296l-71-55-72 55V257Z" fill="#dc704f"/>
+  <path d="M662 272h82c17 0 31 14 31 31v247l-56-43-57 43V272Z" fill="#f08a62"/>
+  <path d="M647 257h112c17 0 31 14 31 31v17H647v-48Z" fill="#f5a07c"/>
+</svg>

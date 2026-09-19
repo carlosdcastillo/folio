@@ -15,6 +15,10 @@
   <path d="M334 275h346c47 0 85 38 85 85v415c0 47-38 85-85 85H334V275Z" fill="#15314c"/>
   <path d="M304 275h17v585h-17c-37 0-67-30-67-67V342c0-37 30-67 67-67Z" fill="#244966" opacity=".65"/>
 
+  <!-- A simple cover monogram keeps the app identifiable when the full icon
+       is shown beside its deliberately simplified Windows counterpart. -->
+  <path d="M410 420h190v58H474v82h110v58H474v142h-64V420Z" fill="#f0e2c5"/>
+
   <!-- A review bookmark is the only accent; its notch stays visible at 16 px. -->
   <path d="M647 257h112c17 0 31 14 31 31v296l-71-55-72 55V257Z" fill="#dc704f"/>
   <path d="M662 272h82c17 0 31 14 31 31v247l-56-43-57 43V272Z" fill="#f08a62"/>

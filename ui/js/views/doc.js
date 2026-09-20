@@ -991,6 +991,7 @@
             $('preview').addEventListener('pointerdown', () => {
                 clearPreviewCaret();
                 global.Markdown.clearSelection($('preview'));
+                editor.clearSelection();
                 editor.setGhostCaret(null);
                 trackingSource = 'preview';
                 clearTimeout(caretTimer);

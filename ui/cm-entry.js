@@ -470,6 +470,10 @@ export function create(parent, options = {}) {
                 text: range.empty ? '' : view.state.sliceDoc(range.from, range.to),
             };
         },
+        clearSelection() {
+            const range = view.state.selection.main;
+            if (!range.empty) view.dispatch({ selection: { anchor: range.head } });
+        },
         toByteOffset(offset) {
             const at = Math.max(0, Math.min(offset, view.state.doc.length));
             return new TextEncoder().encode(view.state.sliceDoc(0, at)).length;

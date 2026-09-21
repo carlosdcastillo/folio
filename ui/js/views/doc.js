@@ -998,6 +998,16 @@
                 trackingSource = 'preview';
                 clearTimeout(caretTimer);
             });
+            $('editor-host').addEventListener('pointerdown', () => {
+                // macOS WebKit can carry the preview's native DOM selection
+                // into a drag that starts in CodeMirror, extending one range
+                // across both panes. End the preview gesture before the
+                // editor's mousedown starts its own selection.
+                const selection = global.getSelection();
+                if (selection?.anchorNode && $('preview').contains(selection.anchorNode)) {
+                    selection.removeAllRanges();
+                }
+            });
             $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));
             $('preview').addEventListener('click', handlePreviewClick);
 

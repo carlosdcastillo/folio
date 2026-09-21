@@ -998,14 +998,33 @@
                 trackingSource = 'preview';
                 clearTimeout(caretTimer);
             });
-            $('editor-host').addEventListener('pointerdown', () => {
-                // macOS WebKit can carry the preview's native DOM selection
-                // into a drag that starts in CodeMirror, extending one range
-                // across both panes. End the preview gesture before the
-                // editor's mousedown starts its own selection.
+            $('editor-host').addEventListener('pointerdown', (event) => {
+                // macOS WebKit carries the preview selection's ANCHOR into a
+                // drag that starts in the editor: instead of collapsing to the
+                // mousedown point, it maps the old preview anchor onto the
+                // editor's copy of that text and extends the drag from there,
+                // selecting a huge unrelated span. Merely clearing the ranges
+                // isn't enough — WebKit keeps the stale drag anchor. Re-seat
+                // the native selection as a collapsed caret at the pointer so
+                // the editor's drag anchors where the user actually pressed.
                 const selection = global.getSelection();
-                if (selection?.anchorNode && $('preview').contains(selection.anchorNode)) {
-                    selection.removeAllRanges();
+                const foreign = selection?.anchorNode
+                    && $('preview').contains(selection.anchorNode);
+                if (!foreign) return;
+                let range = null;
+                if (document.caretRangeFromPoint) {
+                    range = document.caretRangeFromPoint(event.clientX, event.clientY);
+                } else if (document.caretPositionFromPoint) {
+                    const pos = document.caretPositionFromPoint(event.clientX, event.clientY);
+                    if (pos) {
+                        range = document.createRange();
+                        range.setStart(pos.offsetNode, pos.offset);
+                    }
+                }
+                selection.removeAllRanges();
+                if (range && $('editor-host').contains(range.startContainer)) {
+                    range.collapse(true);
+                    selection.addRange(range);
                 }
             });
             $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));

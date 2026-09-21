@@ -572,13 +572,28 @@
         }
     }
 
+    function resolveImages(container, resolver) {
+        if (!resolver) return;
+        for (const image of container.querySelectorAll('img[src]')) {
+            const source = image.getAttribute('src');
+            if (!source || /^(?:[a-z][a-z\d+.-]*:|\/\/|#)/i.test(source)) continue;
+            Promise.resolve(resolver(source)).then((resolved) => {
+                if (resolved && image.isConnected && image.getAttribute('src') === source) {
+                    image.setAttribute('src', resolved);
+                }
+            }).catch((error) => {
+                console.warn('folio: local image failed to load', source, error);
+            });
+        }
+    }
+
     const Markdown = {
         /**
          * Render markdown into `target`. Frontmatter is lifted out into its own
          * card so the preview shows a skill's metadata as metadata.
          */
         render(target, text, options) {
-            const { showFrontmatter = true } = options || {};
+            const { showFrontmatter = true, resolveImage = null } = options || {};
             target.innerHTML = '';
             const source = String(text || '');
             if (!source.trim()) {
@@ -633,6 +648,7 @@
                 }
             }
             if (hasKatex) mapRenderedMath(target, source);
+            resolveImages(target, resolveImage);
 
             // External links open in the user's browser, not in the app shell.
             for (const link of target.querySelectorAll('a[href^="http"]')) {

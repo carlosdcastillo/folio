@@ -1153,6 +1153,7 @@ dependencies = [
 name = "folio-core"
 version = "1.0.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "comrak",
  "dirs",

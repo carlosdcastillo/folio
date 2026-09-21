@@ -19,6 +19,7 @@ thiserror = { workspace = true }
 
 rusqlite = { version = "0.40", features = ["bundled"] }
 sha2 = "0.10"
+base64 = "0.22"
 similar = "2"
 comrak = { version = "0.54", default-features = false }
 notify = "8"

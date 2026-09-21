@@ -19,6 +19,7 @@
     let editorSelection = { from: 0, to: 0, empty: true };
     const buffers = new Map();
     const savingPaths = new Set();
+    const imageCache = new Map();
 
     const view = {
         path: null,
@@ -86,7 +87,26 @@
     }
 
     function renderPreview(text) {
-        global.Markdown.render($('preview'), text);
+        const document = view.path;
+        global.Markdown.render($('preview'), text, {
+            resolveImage(source) {
+                if (!document || !global.Folio.embedded) return null;
+                let decoded;
+                try {
+                    decoded = decodeURIComponent(source);
+                } catch (e) {
+                    decoded = source;
+                }
+                const key = document + '\n' + decoded;
+                if (!imageCache.has(key)) {
+                    imageCache.set(key, global.Folio.call('read_image', {
+                        document,
+                        source: decoded,
+                    }).then((image) => 'data:' + image.mime + ';base64,' + image.data));
+                }
+                return imageCache.get(key);
+            },
+        });
         applyPreviewAnchors();
         if (trackingSource === 'editor') schedulePreviewLocation(editorSelection);
     }
@@ -285,6 +305,7 @@
     }
 
     async function showDocument(doc, content, dirty, keepScroll) {
+        imageCache.clear();
         view.path = doc.path;
         view.doc = doc;
         view.dirty = dirty;

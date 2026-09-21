@@ -115,6 +115,40 @@ const TODO_MD: &str = "# TODO\n\n\
 - [x] Write the spec @carlos\n\
 - [ ] Package the installer @carlos #release\n";
 
+#[test]
+fn local_images_are_read_relative_to_the_document() {
+    let bed = Bed::new();
+    let image_dir = bed
+        .dir
+        .path()
+        .join("corpus")
+        .join("markdowns")
+        .join("images");
+    std::fs::create_dir_all(&image_dir).unwrap();
+    std::fs::write(image_dir.join("a b.png"), [0x89, b'P', b'N', b'G']).unwrap();
+
+    let image = bed.call(
+        &you(),
+        "read_image",
+        json!({
+            "document": bed.path("markdowns/DESIGN.md"),
+            "source": "images/a b.png",
+        }),
+    );
+
+    assert_eq!(image["mime"], "image/png");
+    assert_eq!(image["data"], "iVBORw==");
+    let escaped = bed.try_call(
+        &you(),
+        "read_image",
+        json!({
+            "document": bed.path("markdowns/DESIGN.md"),
+            "source": "../../../outside.png",
+        }),
+    );
+    assert!(escaped.is_err());
+}
+
 // ---------------------------------------------------------------------------
 // Corpus, typing, sandboxing
 // ---------------------------------------------------------------------------

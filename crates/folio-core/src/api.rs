@@ -18,6 +18,7 @@ use crate::search;
 use crate::store::{self, Store};
 use crate::util::{display_path, ms_to_rfc3339, now_ms};
 use crate::version::{self, Source};
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::path::Path;
@@ -604,6 +605,39 @@ impl Folio {
                     "versions": versions,
                     "policy": policy,
                     "exists": resolved.fs_path.exists(),
+                }))
+            }
+            "read_image" => {
+                caller.require_human("read_image")?;
+                let document = self.resolve(&p.req_str("document")?)?;
+                let source = p.req_str("source")?;
+                let relative = Path::new(&source);
+                if relative.is_absolute() {
+                    return Err(Error::invalid(
+                        "image source must be relative to the document",
+                    ));
+                }
+                let image_path = document
+                    .fs_path
+                    .parent()
+                    .unwrap_or_else(|| Path::new(""))
+                    .join(relative);
+                let resolved = self.resolve(&image_path.to_string_lossy())?;
+                let mime = image_mime(&resolved.fs_path)
+                    .ok_or_else(|| Error::invalid(format!("unsupported image type: {source}")))?;
+                let metadata = std::fs::metadata(&resolved.fs_path)?;
+                if metadata.len() > self.config.max_blob_bytes {
+                    return Err(Error::TooLarge(format!(
+                        "{} is {} bytes; the limit is {}",
+                        resolved.display(),
+                        metadata.len(),
+                        self.config.max_blob_bytes
+                    )));
+                }
+                let bytes = std::fs::read(&resolved.fs_path)?;
+                Ok(json!({
+                    "mime": mime,
+                    "data": base64::engine::general_purpose::STANDARD.encode(bytes),
                 }))
             }
             "create_doc" => {
@@ -1234,6 +1268,25 @@ impl Folio {
             }
         }
         Ok(serde_json::to_value(outcome)?)
+    }
+}
+
+fn image_mime(path: &Path) -> Option<&'static str> {
+    match path
+        .extension()?
+        .to_string_lossy()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "avif" => Some("image/avif"),
+        "bmp" => Some("image/bmp"),
+        "gif" => Some("image/gif"),
+        "ico" => Some("image/x-icon"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "png" => Some("image/png"),
+        "svg" => Some("image/svg+xml"),
+        "webp" => Some("image/webp"),
+        _ => None,
     }
 }
 

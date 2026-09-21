@@ -5,7 +5,7 @@
 // CSS variables, selection reporting for anchored comments, and gutter
 // markers for validation findings — and nothing else.
 
-import { EditorState, StateEffect, StateField, RangeSetBuilder, Compartment, Prec } from '@codemirror/state';
+import { EditorState, EditorSelection, StateEffect, StateField, RangeSetBuilder, Compartment, Prec } from '@codemirror/state';
 import {
     EditorView, keymap, highlightActiveLine, highlightActiveLineGutter,
     lineNumbers, drawSelection, rectangularSelection, crosshairCursor,
@@ -325,7 +325,41 @@ const editable = new Compartment();
 export function create(parent, options = {}) {
     const listeners = options.on || {};
     let previewLocationActive = false;
-    let suppressNextMultiClick = false;
+
+    // Some webviews keep MouseEvent.detail counting across panes. When the
+    // first editor mousedown inherits a double/triple-click count from the
+    // preview, force single-click semantics while preserving drag selection.
+    // Handling only mousedown here would swallow the drag that follows it.
+    const crossPaneMouseSelection = (editorView, event) => {
+        if (!previewLocationActive || event.button !== 0 || event.detail <= 1) return null;
+        previewLocationActive = false;
+        let start = editorView.posAtCoords({ x: event.clientX, y: event.clientY }, false);
+        let startSelection = editorView.state.selection;
+        if (start === null) return null;
+
+        return {
+            update(update) {
+                if (update.docChanged) {
+                    start = update.changes.mapPos(start);
+                    startSelection = startSelection.map(update.changes);
+                }
+            },
+            get(current, extend, multiple) {
+                const head = editorView.posAtCoords({
+                    x: current.clientX,
+                    y: current.clientY,
+                }, false);
+                const range = EditorSelection.range(start, head === null ? start : head);
+                if (extend) {
+                    return startSelection.replaceRange(
+                        startSelection.main.extend(range.from, range.to, range.assoc)
+                    );
+                }
+                if (multiple) return startSelection.addRange(range);
+                return EditorSelection.create([range]);
+            },
+        };
+    };
 
     const view = new EditorView({
         parent,
@@ -354,6 +388,7 @@ export function create(parent, options = {}) {
                 ghostCaretField,
                 findingsField,
                 findingsGutter,
+                Prec.highest(EditorView.mouseSelectionStyle.of(crossPaneMouseSelection)),
                 placeholder(options.placeholder || ''),
                 editable.of(EditorView.editable.of(options.editable !== false)),
                 EditorView.updateListener.of((update) => {
@@ -385,33 +420,6 @@ export function create(parent, options = {}) {
                             listeners.anchorClick(anchor.getAttribute('data-comment-id'));
                         }
 
-                        // Chromium can carry a multi-click count from the
-                        // preview into the editor. Treat the first click back
-                        // in the editor as a plain caret placement rather than
-                        // letting CodeMirror expand it to a word selection.
-                        if (event.detail > 1 && previewLocationActive) {
-                            const at = view.posAtCoords({ x: event.clientX, y: event.clientY });
-                            if (at !== null) {
-                                previewLocationActive = false;
-                                suppressNextMultiClick = true;
-                                view.dispatch({
-                                    selection: { anchor: at },
-                                    effects: setGhostCaret.of(null),
-                                    scrollIntoView: true,
-                                    userEvent: 'select.pointer',
-                                });
-                                view.focus();
-                                return true;
-                            }
-                        }
-                        return false;
-                    },
-                    click(event) {
-                        if (event.detail > 1 && suppressNextMultiClick) {
-                            suppressNextMultiClick = false;
-                            return true;
-                        }
-                        suppressNextMultiClick = false;
                         return false;
                     },
                 })),

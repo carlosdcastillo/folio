@@ -297,7 +297,9 @@
         editor.setEditable(doc.type !== 'asset');
         view.suppressChange = false;
 
-        renderPreview(content);
+        // CodeMirror normalizes CRLF input to LF. Render that same value so a
+        // Windows document's preview can map selections back to the editor.
+        renderPreview(editor.getValue());
         app.setDocument(doc);
         await Promise.all([refreshTimeline(), refreshComments(), refreshValidation()]);
     }

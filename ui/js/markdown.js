@@ -118,6 +118,22 @@
         });
     }
 
+    /** Marked normalizes line endings; retain boundaries in the disk source. */
+    function normalizeSource(text) {
+        let normalized = '';
+        const sourceOffsets = [0];
+        for (let i = 0; i < text.length; i++) {
+            if (text[i] === '\r') {
+                if (text[i + 1] === '\n') i++;
+                normalized += '\n';
+            } else {
+                normalized += text[i];
+            }
+            sourceOffsets.push(i + 1);
+        }
+        return { normalized, sourceOffsets };
+    }
+
     /** Render top-level tokens separately so their exact `raw` ranges survive. */
     function renderMapped(holder, body, bodyOffset) {
         if (!hasMarked) {
@@ -127,17 +143,18 @@
             return;
         }
 
-        const tokens = marked.lexer(body);
+        const { normalized, sourceOffsets } = normalizeSource(body);
+        const tokens = marked.lexer(normalized);
         let cursor = 0;
         for (const token of tokens) {
             const raw = token.raw || '';
-            // Marked's block lexer consumes the input in order. Verify that
-            // invariant rather than searching for repeated text and guessing.
-            if (body.slice(cursor, cursor + raw.length) !== raw) {
-                throw new Error('marked token ranges did not consume the source in order');
-            }
-            const start = bodyOffset + cursor;
-            cursor += raw.length;
+            // Marked omits reference definitions from its visible token list.
+            // Tokens still occur in order, so the first match after the prior
+            // token preserves unambiguous ranges while stepping over them.
+            const tokenStart = normalized.indexOf(raw, cursor);
+            if (tokenStart < 0) throw new Error('marked token was not found in the source');
+            const start = bodyOffset + sourceOffsets[tokenStart];
+            cursor = tokenStart + raw.length;
             if (token.type === 'space' || token.type === 'def') continue;
 
             const fragment = document.createElement('template');
@@ -145,12 +162,9 @@
             one.links = tokens.links;
             fragment.innerHTML = sanitize(marked.parser(one));
             for (const child of Array.from(fragment.content.children)) {
-                setSourceRange(child, start, start + raw.length);
+                setSourceRange(child, start, bodyOffset + sourceOffsets[cursor]);
             }
             holder.appendChild(fragment.content);
-        }
-        if (cursor !== body.length) {
-            throw new Error('marked token ranges did not cover the source');
         }
     }
 
@@ -587,7 +601,14 @@
                 renderMapped(holder, body, bodyOffset);
             } catch (e) {
                 console.error('folio: markdown render failed', e);
-                holder.innerHTML = escapeToPre(body);
+                // Mapping powers editor/preview correspondence, but a mapping
+                // edge case must never turn valid Markdown into a code block.
+                try {
+                    holder.innerHTML = hasMarked ? sanitize(marked.parse(body)) : escapeToPre(body);
+                } catch (fallbackError) {
+                    console.error('folio: unmapped markdown render failed', fallbackError);
+                    holder.innerHTML = escapeToPre(body);
+                }
             }
             target.appendChild(holder);
 

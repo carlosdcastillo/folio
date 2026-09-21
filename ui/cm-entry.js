@@ -12,7 +12,6 @@ import {
     highlightSpecialChars, placeholder, Decoration, gutter, GutterMarker, WidgetType,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { highlightSelectionMatches } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import {
     syntaxHighlighting, HighlightStyle, bracketMatching,
@@ -126,7 +125,6 @@ const folioTheme = EditorView.theme({
         color: v('--text-highlight', '#fff'),
     },
     '.cm-cursor, .cm-dropCursor': { borderLeftColor: v('--accent-primary', '#007acc') },
-    '.cm-selectionMatch': { backgroundColor: 'rgba(0,122,204,0.20)' },
     '.cm-searchMatch': { backgroundColor: 'rgba(255,255,0,0.30)' },
     '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'rgba(255,140,0,0.55)' },
     '.cm-foldPlaceholder': {
@@ -375,7 +373,6 @@ export function create(parent, options = {}) {
                 indentOnInput(),
                 bracketMatching(),
                 highlightActiveLine(),
-                highlightSelectionMatches(),
                 rectangularSelection(),
                 crosshairCursor(),
                 keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),

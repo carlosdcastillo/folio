@@ -1326,6 +1326,22 @@ body:has(.dialog-overlay.active) .comment-bubble { display: none; }
     pointer-events: none;
 }
 
+.answer:has(.preview-current-line) {
+    position: relative;
+    isolation: isolate;
+}
+
+.preview-current-line {
+    position: absolute;
+    z-index: -1;
+    left: -10px;
+    right: -10px;
+    border-left: 2px solid var(--accent-primary);
+    border-radius: 2px;
+    background: rgba(128, 128, 128, 0.08);
+    pointer-events: none;
+}
+
 .preview-ghost-selection,
 .preview-math-selection {
     background: var(--accent-secondary);

@@ -129,10 +129,27 @@
 
     function clearPreviewCaret() {
         const caret = $('preview').querySelector('.preview-ghost-caret');
-        if (!caret) return;
-        const parent = caret.parentNode;
-        caret.remove();
-        parent.normalize();
+        if (caret) {
+            const parent = caret.parentNode;
+            caret.remove();
+            parent.normalize();
+        }
+        $('preview').querySelector('.preview-current-line')?.remove();
+    }
+
+    function positionPreviewLine() {
+        const preview = $('preview');
+        const caret = preview.querySelector('.preview-ghost-caret');
+        const marker = preview.querySelector('.preview-current-line');
+        if (!caret || !marker) return;
+
+        const caretBounds = caret.getBoundingClientRect();
+        const previewBounds = preview.getBoundingClientRect();
+        const lineHeight = parseFloat(getComputedStyle(caret.parentElement).lineHeight)
+            || caretBounds.height;
+        marker.style.top = (caretBounds.top - previewBounds.top
+            - Math.max(0, lineHeight - caretBounds.height) / 2) + 'px';
+        marker.style.height = Math.max(lineHeight, caretBounds.height) + 'px';
     }
 
     function placePreviewCaret(offset) {
@@ -150,6 +167,10 @@
         } else {
             mapped.block.appendChild(caret);
         }
+        const marker = el('span', 'preview-current-line');
+        marker.setAttribute('aria-hidden', 'true');
+        $('preview').appendChild(marker);
+        positionPreviewLine();
         caret.scrollIntoView({ block: 'nearest' });
     }
 
@@ -1069,6 +1090,7 @@
             });
             $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));
             $('preview').addEventListener('click', handlePreviewClick);
+            new ResizeObserver(positionPreviewLine).observe($('preview'));
 
             for (const tab of document.querySelectorAll('.drawer-tab')) {
                 tab.addEventListener('click', () => openDrawer(tab.dataset.drawer));

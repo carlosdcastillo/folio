@@ -134,6 +134,79 @@
         return { normalized, sourceOffsets };
     }
 
+    /** Source ranges that can contribute visible text for a parsed token. */
+    function visibleTokenRanges(token, tokenStart) {
+        if (token.type === 'html') return null;
+        const ranges = [];
+
+        function locateChildren(parent, parentStart, children) {
+            let cursor = 0;
+            for (const child of children || []) {
+                const raw = child.raw || '';
+                const at = parent.raw.indexOf(raw, cursor);
+                if (at < 0) continue;
+                collect(child, parentStart + at);
+                cursor = at + raw.length;
+            }
+        }
+
+        function collect(current, start) {
+            if (current.type === 'html' || current.type === 'image'
+                || current.type === 'br' || current.type === 'space'
+                || current.type === 'def' || current.type === 'inlineMath') return;
+
+            if (current.type === 'list') {
+                locateChildren(current, start, current.items);
+                return;
+            }
+            if (current.type === 'table') {
+                let cursor = 0;
+                const collectCells = (cells) => {
+                    for (const cell of cells) {
+                        for (const child of cell.tokens || []) {
+                            const at = current.raw.indexOf(child.raw || '', cursor);
+                            if (at < 0) continue;
+                            collect(child, start + at);
+                            cursor = at + (child.raw || '').length;
+                        }
+                    }
+                };
+                collectCells(current.header);
+                const headerEnd = current.raw.indexOf('\n');
+                const separatorEnd = current.raw.indexOf('\n', headerEnd + 1);
+                cursor = separatorEnd < 0 ? current.raw.length : separatorEnd + 1;
+                for (const row of current.rows) {
+                    collectCells(row);
+                }
+                return;
+            }
+            if (current.tokens) {
+                if (current.type === 'list_item' && current.task && current.tokens.length) {
+                    const first = current.raw.indexOf(current.tokens[0].raw || '');
+                    if (first > 0) ranges.push([start, start + first]);
+                }
+                locateChildren(current, start, current.tokens);
+                return;
+            }
+            if (current.type === 'code' || current.type === 'codespan') {
+                const contentStart = current.type === 'code' && current.codeBlockStyle !== 'indented'
+                    ? current.raw.indexOf('\n') + 1
+                    : 0;
+                const at = current.raw.indexOf(current.text || '', contentStart);
+                if (at >= 0) {
+                    let end = at + current.text.length;
+                    if (current.type === 'code' && current.raw[end] === '\n') end++;
+                    ranges.push([start + at, start + end]);
+                }
+                return;
+            }
+            ranges.push([start, start + (current.raw || '').length]);
+        }
+
+        collect(token, tokenStart);
+        return ranges;
+    }
+
     /** Render top-level tokens separately so their exact `raw` ranges survive. */
     function renderMapped(holder, body, bodyOffset) {
         if (!hasMarked) {
@@ -161,10 +234,30 @@
             const one = [token];
             one.links = tokens.links;
             fragment.innerHTML = sanitize(marked.parser(one));
-            for (const child of Array.from(fragment.content.children)) {
-                setSourceRange(child, start, bodyOffset + sourceOffsets[cursor]);
+            const visibleRanges = visibleTokenRanges(token, tokenStart)?.map(([from, to]) => [
+                bodyOffset + sourceOffsets[from],
+                bodyOffset + sourceOffsets[to],
+            ]);
+            const configureMappingRoot = (element) => {
+                setSourceRange(element, start, bodyOffset + sourceOffsets[cursor]);
+                if (visibleRanges) element._folioVisibleRanges = visibleRanges;
+            };
+            const children = Array.from(fragment.content.children);
+            const hasRenderedTextOutsideChild = Array.from(fragment.content.childNodes).some((node) =>
+                node.nodeType === Node.TEXT_NODE && node.data.trim());
+            if (children.length === 1 && !hasRenderedTextOutsideChild) {
+                configureMappingRoot(children[0]);
+                holder.appendChild(fragment.content);
+            } else {
+                // A raw HTML block may render multiple roots or trailing text.
+                // Keep the token as one mapping unit instead of giving every
+                // root the same overlapping range or leaving text unmapped.
+                const mappingRoot = document.createElement('span');
+                mappingRoot.style.display = 'contents';
+                configureMappingRoot(mappingRoot);
+                mappingRoot.appendChild(fragment.content);
+                holder.appendChild(mappingRoot);
             }
-            holder.appendChild(fragment.content);
         }
     }
 
@@ -234,26 +327,79 @@
         const start = Number(block.dataset.sourceStart);
         const raw = source.slice(start, Number(block.dataset.sourceEnd));
         const rendered = textNodes(block).map((node) => node.data).join('');
+        const renderedTags = new Set([block, ...block.querySelectorAll('*')]
+            .map((element) => element.tagName.toLowerCase()));
+        const visibleRanges = block._folioVisibleRanges?.map(([from, to]) => [from - start, to - start]);
+        const tagRanges = [];
+        const tagPattern = /<!--[\s\S]*?-->|<\/?([A-Za-z][\w:-]*)(?:\s[^<>]*?)?\/?>/g;
+        let tag;
+        while ((tag = tagPattern.exec(raw))) {
+            if (!tag[1] || renderedTags.has(tag[1].toLowerCase())) {
+                tagRanges.push([tag.index, tag.index + tag[0].length]);
+            }
+        }
+        const units = [];
+        for (let at = 0; at < raw.length;) {
+            const visible = !visibleRanges
+                || visibleRanges.some((range) => at >= range[0] && at < range[1]);
+            const containingTag = tagRanges.find((range) => at >= range[0] && at < range[1]);
+            if (!visible || containingTag) {
+                at = containingTag ? containingTag[1] : at + 1;
+                continue;
+            }
+
+            const entity = raw.slice(at).match(/^&(?:#\d+|#x[\da-f]+|[a-z][\da-z]+);/i)?.[0];
+            if (entity) {
+                const decoder = document.createElement('textarea');
+                decoder.innerHTML = entity;
+                if (decoder.value !== entity) {
+                    for (const character of decoder.value) {
+                        for (let i = 0; i < character.length; i++) {
+                            units.push({ character: character[i], start: at, end: at + entity.length });
+                        }
+                    }
+                    at += entity.length;
+                    continue;
+                }
+            }
+            units.push({ character: raw[at], start: at, end: at + 1 });
+            at++;
+        }
         const starts = [];
         const ends = [];
         let cursor = 0;
         for (let i = 0; i < rendered.length; i++) {
-            const at = raw.indexOf(rendered[i], cursor);
-            if (at < 0) return null;
-            starts.push(start + at);
-            ends.push(start + at + 1);
-            cursor = at + 1;
+            while (cursor < units.length && units[cursor].character !== rendered[i]) cursor++;
+            if (cursor >= units.length) return null;
+            starts.push(start + units[cursor].start);
+            ends.push(start + units[cursor].end);
+            cursor++;
         }
         return { rendered, starts, ends };
     }
 
     function textOffset(block, node, offset) {
         let at = 0;
-        for (const text of textNodes(block)) {
+        const nodes = textNodes(block);
+        for (const text of nodes) {
             if (text === node) return at + Math.max(0, Math.min(offset, text.data.length));
             at += text.data.length;
         }
-        return null;
+        if (!node || node.nodeType !== Node.ELEMENT_NODE || !block.contains(node)) return null;
+
+        try {
+            const boundary = document.createRange();
+            boundary.setStart(node, Math.max(0, Math.min(offset, node.childNodes.length)));
+            boundary.collapse(true);
+            at = 0;
+            for (const text of nodes) {
+                if (boundary.comparePoint(text, text.data.length) > 0) break;
+                at += text.data.length;
+            }
+            return at;
+        } catch (e) {
+            return null;
+        }
     }
 
     function mapBoundary(target, node, offset, side) {
@@ -330,7 +476,7 @@
         }
 
         for (const node of nodes) {
-            if (renderedOffset <= node.data.length) return { block, node, offset: renderedOffset };
+            if (renderedOffset < node.data.length) return { block, node, offset: renderedOffset };
             renderedOffset -= node.data.length;
         }
         const node = nodes.at(-1);

@@ -43,6 +43,7 @@
         if (editor) return editor;
         editor = global.FolioCM.create($('editor-host'), {
             doc: '',
+            editable: false,
             placeholder: 'Open a document from the corpus, or create one with ' + global.Folio.shortcut('Mod+N') + '.',
             on: {
                 change(text) {
@@ -70,6 +71,12 @@
             },
         });
         return editor;
+    }
+
+    function setFormattingEnabled(enabled) {
+        for (const button of document.querySelectorAll('#format-toolbar .format-btn')) {
+            button.disabled = !enabled;
+        }
     }
 
     function schedulePreview(text) {
@@ -316,6 +323,7 @@
         view.suppressChange = true;
         editor.setValue(content, { preserveCursor: keepScroll });
         editor.setEditable(doc.type !== 'asset');
+        setFormattingEnabled(doc.type !== 'asset');
         view.suppressChange = false;
 
         // CodeMirror normalizes CRLF input to LF. Render that same value so a
@@ -382,6 +390,7 @@
         view.suppressChange = true;
         editor.setValue('');
         editor.setEditable(false);
+        setFormattingEnabled(false);
         view.suppressChange = false;
         global.Markdown.render($('preview'), '');
         $('drawer-timeline').innerHTML = '';
@@ -1008,6 +1017,16 @@
         init(application) {
             app = application;
             ensureEditor();
+
+            $('format-toolbar').addEventListener('pointerdown', (event) => {
+                // Keep CodeMirror's selection intact while clicking a format control.
+                if (event.target.closest('.format-btn')) event.preventDefault();
+            });
+            $('format-toolbar').addEventListener('click', (event) => {
+                const button = event.target.closest('.format-btn');
+                if (!button || button.disabled) return;
+                editor.format(button.dataset.format);
+            });
 
             $('comment-bubble-btn').addEventListener('click', startComment);
             $('comment-confirm').addEventListener('click', confirmComment);

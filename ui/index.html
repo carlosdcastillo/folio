@@ -225,6 +225,29 @@
 
                         <div class="doc-panes" id="doc-panes">
                             <div class="editor-pane" id="editor-pane">
+                                <div class="format-toolbar" id="format-toolbar" role="toolbar" aria-label="Markdown formatting">
+                                    <button class="format-btn" type="button" data-format="heading" title="Heading" aria-label="Heading" disabled>H</button>
+                                    <span class="format-separator" aria-hidden="true"></span>
+                                    <button class="format-btn format-btn--bold" type="button" data-format="bold"
+                                            title="Bold (Ctrl+B)" data-shortcut-title="Bold ({shortcut})" data-shortcut="Mod+B"
+                                            aria-label="Bold" disabled>B</button>
+                                    <button class="format-btn format-btn--italic" type="button" data-format="italic"
+                                            title="Italic (Ctrl+I)" data-shortcut-title="Italic ({shortcut})" data-shortcut="Mod+I"
+                                            aria-label="Italic" disabled>I</button>
+                                    <button class="format-btn format-btn--strike" type="button" data-format="strikethrough"
+                                            title="Strikethrough" aria-label="Strikethrough" disabled>S</button>
+                                    <button class="format-btn format-btn--code" type="button" data-format="code"
+                                            title="Inline code" aria-label="Inline code" disabled>&lt;/&gt;</button>
+                                    <button class="format-btn format-btn--link" type="button" data-format="link"
+                                            title="Link" aria-label="Link" disabled>↗</button>
+                                    <span class="format-separator" aria-hidden="true"></span>
+                                    <button class="format-btn" type="button" data-format="bullet-list"
+                                            title="Bulleted list" aria-label="Bulleted list" disabled>•</button>
+                                    <button class="format-btn format-btn--numbered" type="button" data-format="numbered-list"
+                                            title="Numbered list" aria-label="Numbered list" disabled>1.</button>
+                                    <button class="format-btn format-btn--quote" type="button" data-format="quote"
+                                            title="Block quote" aria-label="Block quote" disabled>❯</button>
+                                </div>
                                 <div class="findings-strip hidden" id="findings-strip"></div>
                                 <div class="editor-host" id="editor-host"></div>
                             </div>

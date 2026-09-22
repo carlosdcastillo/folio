@@ -320,9 +320,128 @@ const findingsGutter = gutter({
 
 const editable = new Compartment();
 
+const inlineFormats = {
+    bold: { open: '**', close: '**', placeholder: 'bold text' },
+    italic: { open: '_', close: '_', placeholder: 'italic text' },
+    strikethrough: { open: '~~', close: '~~', placeholder: 'strikethrough text' },
+    code: { open: '`', close: '`', placeholder: 'code' },
+};
+
 export function create(parent, options = {}) {
     const listeners = options.on || {};
     let previewLocationActive = false;
+
+    function wrapSelection(format) {
+        const spec = inlineFormats[format];
+        if (!spec) return false;
+        const range = view.state.selection.main;
+        const selected = view.state.sliceDoc(range.from, range.to);
+        const before = view.state.sliceDoc(Math.max(0, range.from - spec.open.length), range.from);
+        const after = view.state.sliceDoc(range.to, range.to + spec.close.length);
+
+        if (!range.empty && before === spec.open && after === spec.close) {
+            view.dispatch({
+                changes: [
+                    { from: range.from - spec.open.length, to: range.from },
+                    { from: range.to, to: range.to + spec.close.length },
+                ],
+                selection: { anchor: range.from - spec.open.length, head: range.to - spec.open.length },
+                scrollIntoView: true,
+                userEvent: 'input.format',
+            });
+        } else if (!range.empty && selected.startsWith(spec.open) && selected.endsWith(spec.close)
+            && selected.length >= spec.open.length + spec.close.length) {
+            const inner = selected.slice(spec.open.length, selected.length - spec.close.length);
+            view.dispatch({
+                changes: { from: range.from, to: range.to, insert: inner },
+                selection: { anchor: range.from, head: range.from + inner.length },
+                scrollIntoView: true,
+                userEvent: 'input.format',
+            });
+        } else {
+            const content = range.empty ? spec.placeholder : selected;
+            const insert = spec.open + content + spec.close;
+            view.dispatch({
+                changes: { from: range.from, to: range.to, insert },
+                selection: {
+                    anchor: range.from + spec.open.length,
+                    head: range.from + spec.open.length + content.length,
+                },
+                scrollIntoView: true,
+                userEvent: 'input.format',
+            });
+        }
+        view.focus();
+        return true;
+    }
+
+    function addLink() {
+        const range = view.state.selection.main;
+        const selected = view.state.sliceDoc(range.from, range.to);
+        const label = selected || 'link text';
+        const url = 'https://';
+        view.dispatch({
+            changes: { from: range.from, to: range.to, insert: `[${label}](${url})` },
+            selection: selected
+                ? { anchor: range.from + label.length + 3, head: range.from + label.length + 3 + url.length }
+                : { anchor: range.from + 1, head: range.from + 1 + label.length },
+            scrollIntoView: true,
+            userEvent: 'input.format',
+        });
+        view.focus();
+        return true;
+    }
+
+    function prefixLines(format) {
+        const prefixes = {
+            heading: { pattern: /^(#{1,6})\s+/, add: '# ' },
+            'bullet-list': { pattern: /^(?:[-+*])\s+/, add: '- ' },
+            'numbered-list': { pattern: /^\d+[.)]\s+/, add: '1. ' },
+            quote: { pattern: /^>\s?/, add: '> ' },
+        };
+        const spec = prefixes[format];
+        if (!spec) return false;
+        const range = view.state.selection.main;
+        const first = view.state.doc.lineAt(range.from);
+        // A selection ending at the start of a line belongs to the line above.
+        const endPos = range.to > range.from && range.to === view.state.doc.lineAt(range.to).from
+            ? range.to - 1 : range.to;
+        const last = view.state.doc.lineAt(endPos);
+        const lines = [];
+        for (let number = first.number; number <= last.number; number++) {
+            lines.push(view.state.doc.line(number));
+        }
+        const nonEmpty = lines.filter((line) => line.text.length);
+        const remove = nonEmpty.length > 0 && nonEmpty.every((line) => spec.pattern.test(line.text));
+        const changes = [];
+        for (const line of lines) {
+            if (!line.text.length && remove) continue;
+            const match = line.text.match(spec.pattern);
+            if (remove && match) changes.push({ from: line.from, to: line.from + match[0].length });
+            else if (!remove) changes.push({ from: line.from, insert: spec.add });
+        }
+        if (!changes.length) return false;
+        const changeSet = view.state.changes(changes);
+        const selection = range.empty ? undefined : {
+            anchor: changeSet.mapPos(first.from, -1),
+            head: changeSet.mapPos(last.to, 1),
+        };
+        view.dispatch({
+            changes: changeSet,
+            selection,
+            scrollIntoView: true,
+            userEvent: 'input.format',
+        });
+        view.focus();
+        return true;
+    }
+
+    function formatSelection(format) {
+        if (!view.state.facet(EditorView.editable)) return false;
+        if (inlineFormats[format]) return wrapSelection(format);
+        if (format === 'link') return addLink();
+        return prefixLines(format);
+    }
 
     // Some webviews keep MouseEvent.detail counting across panes. When the
     // first editor mousedown inherits a double/triple-click count from the
@@ -375,7 +494,11 @@ export function create(parent, options = {}) {
                 highlightActiveLine(),
                 rectangularSelection(),
                 crosshairCursor(),
-                keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
+                keymap.of([
+                    { key: 'Mod-b', run: () => formatSelection('bold'), preventDefault: true },
+                    { key: 'Mod-i', run: () => formatSelection('italic'), preventDefault: true },
+                    ...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab,
+                ]),
                 markdown({ base: markdownLanguage, codeLanguages }),
                 syntaxHighlighting(folioHighlight),
                 folioTheme,
@@ -475,6 +598,7 @@ export function create(parent, options = {}) {
                 text: range.empty ? '' : view.state.sliceDoc(range.from, range.to),
             };
         },
+        format: formatSelection,
         clearSelection() {
             const range = view.state.selection.main;
             if (!range.empty) view.dispatch({ selection: { anchor: range.head } });

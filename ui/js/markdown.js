@@ -134,6 +134,47 @@
         return { normalized, sourceOffsets };
     }
 
+    /** Recreate the list-item body Marked tokenizes, retaining source offsets. */
+    function normalizeListItem(raw, task) {
+        const firstEnd = raw.indexOf('\n');
+        const firstLine = raw.slice(0, firstEnd < 0 ? raw.length : firstEnd);
+        const marker = firstLine.match(/^ {0,3}(?:[*+-]|\d+[.)])[ \t]+/);
+        if (!marker) return null;
+
+        let firstContent = marker[0].length;
+        if (task) {
+            const checkbox = firstLine.slice(firstContent).match(/^\[[ xX]\][ \t]+/);
+            if (checkbox) firstContent += checkbox[0].length;
+        }
+
+        let normalized = '';
+        const sourceOffsets = [firstContent];
+        let lineStart = 0;
+        let first = true;
+        while (lineStart < raw.length) {
+            const lineEnd = raw.indexOf('\n', lineStart);
+            const end = lineEnd < 0 ? raw.length : lineEnd;
+            let contentStart = first ? lineStart + firstContent : lineStart;
+            if (!first) {
+                let stripped = 0;
+                while (stripped < marker[0].length && raw[contentStart] === ' ') {
+                    contentStart++;
+                    stripped++;
+                }
+            }
+            for (let at = contentStart; at < end; at++) {
+                normalized += raw[at];
+                sourceOffsets.push(at + 1);
+            }
+            if (lineEnd < 0) break;
+            normalized += '\n';
+            sourceOffsets.push(lineEnd + 1);
+            lineStart = lineEnd + 1;
+            first = false;
+        }
+        return { normalized, sourceOffsets, firstContent };
+    }
+
     /** Source ranges that can contribute visible text for a parsed token. */
     function visibleTokenRanges(token, tokenStart) {
         if (token.type === 'html') return null;
@@ -180,11 +221,33 @@
                 }
                 return;
             }
-            if (current.tokens) {
-                if (current.type === 'list_item' && current.task && current.tokens.length) {
-                    const first = current.raw.indexOf(current.tokens[0].raw || '');
-                    if (first > 0) ranges.push([start, start + first]);
+            if (current.type === 'list_item') {
+                // Marked removes the list marker and rewrites continuation
+                // indentation before building an item's child tokens. Those
+                // child `raw` values therefore are not necessarily substrings
+                // of `current.raw` (wrapped task items are the common case).
+                // Re-lex the normalized body, then project its visible ranges
+                // back onto the exact source instead of losing the whole item.
+                const body = normalizeListItem(current.raw, current.task);
+                if (!body) return;
+                if (current.task) ranges.push([start, start + body.firstContent]);
+                const reparsed = marked.lexer(body.normalized);
+                let cursor = 0;
+                for (const child of reparsed) {
+                    const raw = child.raw || '';
+                    const at = body.normalized.indexOf(raw, cursor);
+                    if (at < 0) continue;
+                    for (const [from, to] of visibleTokenRanges(child, at) || []) {
+                        ranges.push([
+                            start + body.sourceOffsets[from],
+                            start + body.sourceOffsets[to],
+                        ]);
+                    }
+                    cursor = at + raw.length;
                 }
+                return;
+            }
+            if (current.tokens) {
                 locateChildren(current, start, current.tokens);
                 return;
             }

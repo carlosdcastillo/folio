@@ -2270,6 +2270,12 @@ body.review-mode .hunk-btn:not(.chosen-accept):not(.chosen-reject) {
     user-select: text;
 }
 
+.answer:focus { outline: none; }
+.answer:focus-visible:not(:has(.preview-ghost-caret)) {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
 .answer p { margin-bottom: 20px; margin-top: 0; }
 .answer p:last-child { margin-bottom: 0; }
 

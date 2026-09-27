@@ -16,6 +16,7 @@
     let validateTimer = null;
     let caretTimer = null;
     let trackingSource = null;
+    let previewCursor = null;
     let editorSelection = { from: 0, to: 0, empty: true };
     const buffers = new Map();
     const savingPaths = new Set();
@@ -157,6 +158,7 @@
         global.Markdown.clearSelection($('preview'));
         const mapped = global.Markdown.mapOffset($('preview'), offset);
         if (!mapped) return;
+        previewCursor = { offset, goalColumn: null };
         const caret = el('span', 'preview-ghost-caret');
         caret.setAttribute('aria-hidden', 'true');
         if (mapped.node) {
@@ -172,6 +174,30 @@
         $('preview').appendChild(marker);
         positionPreviewLine();
         caret.scrollIntoView({ block: 'nearest' });
+    }
+
+    function handlePreviewKeydown(event) {
+        const directions = {
+            ArrowUp: 'up',
+            ArrowDown: 'down',
+            ArrowLeft: 'left',
+            ArrowRight: 'right',
+        };
+        const direction = directions[event.key];
+        if (!direction || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        if (!previewCursor || $('preview')._folioSource !== editor.getValue()) return;
+
+        event.preventDefault();
+        const moved = editor.moveCursor(
+            previewCursor.offset,
+            direction,
+            previewCursor.goalColumn
+        );
+        placePreviewCaret(moved.offset);
+        previewCursor.goalColumn = moved.goalColumn;
+        editor.setGhostCaret(moved.offset);
+        trackingSource = 'preview';
+        clearTimeout(caretTimer);
     }
 
     function placePreviewSelection(from, to) {
@@ -1056,6 +1082,7 @@
                 global.Markdown.clearSelection($('preview'));
                 editor.clearSelection();
                 editor.setGhostCaret(null);
+                previewCursor = null;
                 trackingSource = 'preview';
                 clearTimeout(caretTimer);
             });
@@ -1090,6 +1117,7 @@
             });
             $('preview').addEventListener('mouseup', () => setTimeout(handlePreviewSelection));
             $('preview').addEventListener('click', handlePreviewClick);
+            $('preview').addEventListener('keydown', handlePreviewKeydown);
             new ResizeObserver(positionPreviewLine).observe($('preview'));
 
             for (const tab of document.querySelectorAll('.drawer-tab')) {

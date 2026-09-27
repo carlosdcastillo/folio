@@ -603,6 +603,14 @@ export function create(parent, options = {}) {
             const range = view.state.selection.main;
             if (!range.empty) view.dispatch({ selection: { anchor: range.head } });
         },
+        moveCursor(offset, direction, goalColumn = null) {
+            const at = Math.max(0, Math.min(offset, view.state.doc.length));
+            const cursor = EditorSelection.cursor(at, 0, null, goalColumn);
+            const moved = direction === 'left' || direction === 'right'
+                ? view.moveByChar(cursor, direction === 'right')
+                : view.moveVertically(cursor, direction === 'down');
+            return { offset: moved.head, goalColumn: moved.goalColumn };
+        },
         toByteOffset(offset) {
             const at = Math.max(0, Math.min(offset, view.state.doc.length));
             return new TextEncoder().encode(view.state.sliceDoc(0, at)).length;

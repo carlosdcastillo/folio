@@ -2362,7 +2362,12 @@ body.review-mode .hunk-btn:not(.chosen-accept):not(.chosen-reject) {
     line-height: 1.4;
 }
 
-.answer ol { list-style: none; counter-reset: item; padding-left: 28px; }
+.answer ol {
+    --folio-list-start: 0;
+    list-style: none;
+    counter-reset: item var(--folio-list-start, 0);
+    padding-left: 28px;
+}
 .answer ol li { position: relative; margin: 8px 0; padding-left: 8px; counter-increment: item; }
 
 .answer ol li::before {

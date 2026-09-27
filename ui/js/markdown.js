@@ -131,7 +131,32 @@
             }
             sourceOffsets.push(i + 1);
         }
-        return { normalized, sourceOffsets };
+
+        // CommonMark only allows an ordered list beginning with `1.` to
+        // interrupt a paragraph. In ordinary documents, a bold section label
+        // is often followed immediately by a continued list (`5.`, `6.`, ...)
+        // without a blank line. Treat that narrow pattern as a block boundary
+        // while retaining an exact map to the unmodified disk source.
+        let compatible = '';
+        const compatibleOffsets = [sourceOffsets[0]];
+        let lineStart = 0;
+        for (let i = 0; i < normalized.length; i++) {
+            compatible += normalized[i];
+            compatibleOffsets.push(sourceOffsets[i + 1]);
+            if (normalized[i] !== '\n') continue;
+
+            const line = normalized.slice(lineStart, i);
+            const nextEnd = normalized.indexOf('\n', i + 1);
+            const nextLine = normalized.slice(i + 1, nextEnd < 0 ? normalized.length : nextEnd);
+            const listMarker = nextLine.match(/^ {0,3}(\d+)[.)][ \t]+/);
+            if (/^ {0,3}(?:\*\*[^\n]+\*\*|__[^\n]+__)\s*$/.test(line)
+                && listMarker && Number(listMarker[1]) !== 1) {
+                compatible += '\n';
+                compatibleOffsets.push(sourceOffsets[i + 1]);
+            }
+            lineStart = i + 1;
+        }
+        return { normalized: compatible, sourceOffsets: compatibleOffsets };
     }
 
     /** Recreate the list-item body Marked tokenizes, retaining source offsets. */
@@ -796,6 +821,16 @@
         }
     }
 
+    /** Preserve a continued ordered list's first number with custom counters. */
+    function decorateOrderedLists(container) {
+        for (const list of container.querySelectorAll('ol[start]')) {
+            const start = Number(list.getAttribute('start'));
+            if (Number.isInteger(start)) {
+                list.style.setProperty('--folio-list-start', String(start - 1));
+            }
+        }
+    }
+
     const Markdown = {
         /**
          * Render markdown into `target`. Frontmatter is lifted out into its own
@@ -839,6 +874,7 @@
             highlightCodeBlocks(target);
             decorateCodeBlocks(target);
             decorateTaskLists(target);
+            decorateOrderedLists(target);
             renderInlineMath(target);
 
             if (hasKatexAutoRender) {

@@ -21,6 +21,7 @@ use crate::version::{self, Source};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -80,6 +81,19 @@ pub struct DocSummary {
     /// False when the file has history but is no longer on disk.
     pub exists: bool,
     pub policy: Policy,
+}
+
+#[derive(Debug, Serialize)]
+struct TodayChangedFile {
+    path: String,
+    display: String,
+    #[serde(rename = "type")]
+    artifact_type: ArtifactType,
+    edits: usize,
+    authors: Vec<String>,
+    latest_source: Source,
+    latest_message: Option<String>,
+    latest_at_iso: String,
 }
 
 pub struct Folio {
@@ -424,7 +438,10 @@ impl Folio {
             &comment::ListFilter { status: Some(comment::Status::Outdated), limit: 200, ..Default::default() },
         )?;
 
-        let changes = version::since(&self.store, since, 500)?;
+        let changes: Vec<_> = version::since(&self.store, since, 500)?
+            .into_iter()
+            .filter(|snap| snap.artifact_type != ArtifactType::Asset)
+            .collect();
         let mut by_author: Map<String, Value> = Map::new();
         for snap in &changes {
             by_author
@@ -433,6 +450,35 @@ impl Folio {
                 .as_array_mut()
                 .unwrap()
                 .push(serde_json::to_value(snap)?);
+        }
+
+        // Today answers which Markdown files changed. The snapshots remain in
+        // `all` and in each document's timeline for the detailed edit history.
+        // `changes` is newest-first, so the first snapshot for a path supplies
+        // the row's activity message and timestamp.
+        let mut changed_files: Vec<TodayChangedFile> = Vec::new();
+        let mut file_indexes: HashMap<String, usize> = HashMap::new();
+        for snap in &changes {
+            let key = corpus::fold(&snap.path);
+            if let Some(&index) = file_indexes.get(&key) {
+                let file = &mut changed_files[index];
+                file.edits += 1;
+                if !file.authors.contains(&snap.author) {
+                    file.authors.push(snap.author.clone());
+                }
+            } else {
+                file_indexes.insert(key, changed_files.len());
+                changed_files.push(TodayChangedFile {
+                    path: snap.path.clone(),
+                    display: snap.display.clone(),
+                    artifact_type: snap.artifact_type,
+                    edits: 1,
+                    authors: vec![snap.author.clone()],
+                    latest_source: snap.source,
+                    latest_message: snap.message.clone(),
+                    latest_at_iso: snap.created_at_iso.clone(),
+                });
+            }
         }
 
         let pending = proposal::list(
@@ -461,6 +507,8 @@ impl Folio {
             },
             "changes": {
                 "total": changes.len(),
+                "files_total": changed_files.len(),
+                "files": changed_files,
                 "by_author": Value::Object(by_author),
                 "all": changes,
             },

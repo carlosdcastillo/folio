@@ -768,6 +768,34 @@ fn an_agent_maintains_the_task_list_directly_and_it_shows_up_in_today() {
 }
 
 #[test]
+fn today_lists_each_changed_markdown_once_with_its_edit_activity() {
+    let bed = Bed::new();
+    let design = bed.path("markdowns/DESIGN.md");
+
+    bed.call(
+        &you(),
+        "save_doc",
+        json!({ "path": &design, "content": "# Design\n\nFirst edit.\n" }),
+    );
+    bed.call(
+        &you(),
+        "save_doc",
+        json!({ "path": &design, "content": "# Design\n\nSecond edit.\n" }),
+    );
+
+    let today = bed.call(&you(), "today", json!({}));
+    let files = today["changes"]["files"].as_array().unwrap();
+    let design_rows: Vec<_> = files.iter().filter(|file| file["path"] == design).collect();
+
+    assert_eq!(design_rows.len(), 1, "a changed path appears only once: {files:#?}");
+    assert_eq!(design_rows[0]["edits"], 3, "initial indexing plus two saves");
+    assert_eq!(design_rows[0]["authors"], json!(["you", "external"]));
+    assert_eq!(design_rows[0]["latest_source"], "save");
+    assert_eq!(today["changes"]["files_total"], files.len());
+    assert!(today["changes"]["total"].as_u64().unwrap() > files.len() as u64);
+}
+
+#[test]
 fn a_stale_task_write_fails_with_the_current_list_attached() {
     let bed = Bed::new();
     let todo = bed.path("TODO.md");

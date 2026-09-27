@@ -50,7 +50,7 @@
         metrics.appendChild(metric(data.tasks.open, 'open tasks'));
         metrics.appendChild(metric(data.comments.open, 'open comments',
             data.comments.open ? 'attention' : 'good'));
-        metrics.appendChild(metric(data.changes.total, 'changes overnight'));
+        metrics.appendChild(metric(data.changes.files_total, 'files changed'));
         host.appendChild(metrics);
 
         // -- proposals -------------------------------------------------------
@@ -125,31 +125,35 @@
         host.appendChild(comments);
 
         // -- overnight changes ------------------------------------------------
-        const changes = section2('Changed since your last review', data.changes.total);
-        if (!data.changes.total) {
+        const filesChanged = data.changes.files_total;
+        const changeSummary = filesChanged + ' ' + (filesChanged === 1 ? 'file' : 'files') +
+            ' · ' + data.changes.total + ' ' + (data.changes.total === 1 ? 'edit' : 'edits');
+        const changes = section2('Changed since your last review', changeSummary);
+        if (!filesChanged) {
             changes.appendChild(el('div', 'today-empty', 'Nothing has changed.'));
         } else {
-            const authors = Object.keys(data.changes.by_author).sort();
-            for (const author of authors) {
-                const group = el('div', 'today-group');
-                group.appendChild(el('div', 'today-group-label',
-                    author + ' · ' + data.changes.by_author[author].length));
-                for (const snap of data.changes.by_author[author]) {
-                    const row = el('button', 'change-row');
-                    row.type = 'button';
-                    row.appendChild(el('span', 'source-badge source-badge--' + snap.source, snap.source));
-                    const main = el('div', 'change-path');
-                    main.appendChild(el('div', null, snap.display));
-                    if (snap.message) main.appendChild(el('div', 'change-message', snap.message));
-                    row.appendChild(main);
-                    row.appendChild(el('span', 'timeline-delta ' +
-                        (snap.size_delta > 0 ? 'timeline-delta--up' : 'timeline-delta--down'),
-                        global.UI.delta(snap.size_delta)));
-                    row.appendChild(el('span', 'timeline-time', global.UI.relativeTime(snap.created_at_iso)));
-                    row.addEventListener('click', () => app.openDoc(snap.path, { drawer: 'timeline' }));
-                    group.appendChild(row);
-                }
-                changes.appendChild(group);
+            for (const file of data.changes.files) {
+                const row = el('button', 'change-row change-file-row');
+                row.type = 'button';
+                row.appendChild(el('span', 'change-file-icon', global.UI.typeIcon(file.type)));
+
+                const path = el('div', 'change-path');
+                path.appendChild(el('div', null, file.display));
+                row.appendChild(path);
+
+                const activity = el('span', 'change-activity',
+                    file.latest_message || sourceActivity(file.latest_source));
+                activity.title = activity.textContent;
+                row.appendChild(activity);
+
+                const authors = el('span', 'change-authors', file.authors.join(', '));
+                authors.title = file.authors.join(', ');
+                row.appendChild(authors);
+                row.appendChild(el('span', 'change-edit-count',
+                    file.edits + ' ' + (file.edits === 1 ? 'edit' : 'edits')));
+                row.appendChild(el('span', 'timeline-time', global.UI.relativeTime(file.latest_at_iso)));
+                row.addEventListener('click', () => app.openDoc(file.path, { drawer: 'timeline' }));
+                changes.appendChild(row);
             }
         }
         host.appendChild(changes);
@@ -167,6 +171,17 @@
         if (hour < 12) return 'This morning';
         if (hour < 18) return 'Today';
         return 'This evening';
+    }
+
+    function sourceActivity(source) {
+        return {
+            save: 'Saved in Folio',
+            external: 'Changed outside Folio',
+            proposal: 'Accepted proposal',
+            restore: 'Restored an earlier version',
+            checkpoint: 'Created checkpoint',
+            direct: 'Edited directly by an agent',
+        }[source] || 'Edited';
     }
 
     function metric(value, label, tone) {

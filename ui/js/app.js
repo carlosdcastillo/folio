@@ -151,10 +151,7 @@
         chip.className = 'type-chip type-chip--' + doc.type;
         chip.textContent = global.UI.typeLabel(doc.type);
 
-        global.Folio.window.setTitle('Folio — ' + doc.display);
-        $('window-title').textContent = 'Folio';
-        const suffix = el('span', 'window-title-doc', '  —  ' + doc.display);
-        $('window-title').appendChild(suffix);
+        updateDocumentSaveState();
 
         for (const action of ['save', 'close-tab', 'checkpoint', 'export-history', 'find', 'render-prompt', 'resolve-comment']) {
             global.UI.setMenuEnabled(action, true);
@@ -176,8 +173,25 @@
 
     function setDirty(dirty) {
         state.dirty = dirty;
-        $('doc-title').classList.toggle('dirty', dirty);
+        updateDocumentSaveState();
         renderOpenFiles();
+    }
+
+    function updateDocumentSaveState() {
+        const dirty = !!state.currentDoc && state.dirty;
+        const saveState = $('doc-save-state');
+        saveState.hidden = !dirty;
+
+        $('doc-title').classList.toggle('dirty', dirty);
+        if (!state.currentDoc) return;
+
+        const title = state.currentDoc.display;
+        global.Folio.window.setTitle(dirty
+            ? '● UNSAVED — ' + title + ' — Folio'
+            : 'Folio — ' + title);
+        $('window-title').textContent = dirty ? 'Folio — UNSAVED' : 'Folio';
+        const suffix = el('span', 'window-title-doc', '  —  ' + title);
+        $('window-title').appendChild(suffix);
     }
 
     let exitPending = false;
@@ -220,6 +234,7 @@
         $('doc-title').textContent = 'No document open';
         $('doc-title').title = '';
         $('doc-title').classList.remove('dirty');
+        $('doc-save-state').hidden = true;
         $('doc-path-copy').disabled = true;
         $('doc-type-chip').hidden = true;
         $('doc-facts').textContent = '';
@@ -240,17 +255,19 @@
             if (doc.path === state.currentPath) {
                 tab.classList.add('active');
             }
-            if (global.DocView.isDirty(doc.path)) tab.classList.add('dirty');
+            const dirty = global.DocView.isDirty(doc.path);
+            if (dirty) tab.classList.add('dirty');
 
             const select = el('button', 'open-file-select');
             select.type = 'button';
-            select.title = doc.path;
-            select.setAttribute('aria-label', 'Open ' + doc.display);
+            select.title = dirty ? doc.path + ' — Unsaved changes' : doc.path;
+            select.setAttribute('aria-label', 'Open ' + doc.display + (dirty ? ', unsaved changes' : ''));
             if (doc.path === state.currentPath) select.setAttribute('aria-current', 'page');
             const icon = el('span', 'open-file-icon doc-icon--' + doc.type, global.UI.typeIcon(doc.type));
             icon.setAttribute('aria-hidden', 'true');
             select.appendChild(icon);
             select.appendChild(el('span', 'open-file-name', doc.display));
+            if (dirty) select.appendChild(el('span', 'open-file-unsaved', 'Unsaved'));
             select.addEventListener('click', () => openDoc(doc.path));
             tab.appendChild(select);
 

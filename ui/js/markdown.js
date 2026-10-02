@@ -16,6 +16,15 @@
     if (hasMarked) {
         marked.setOptions({ gfm: true, breaks: false });
         marked.use({
+            renderer: {
+                del(token) {
+                    // Folio's formatting toolbar emits `~~text~~`. Treat a
+                    // lone pair of tildes as prose so estimates such as
+                    // "~46 weeks (~$0.5M)" cannot become strikethrough.
+                    if (token.raw.startsWith('~~')) return false;
+                    return '~' + this.parser.parseInline(token.tokens) + '~';
+                },
+            },
             extensions: [{
                 name: 'inlineMath',
                 level: 'inline',
@@ -220,6 +229,13 @@
             if (current.type === 'html' || current.type === 'image'
                 || current.type === 'br' || current.type === 'space'
                 || current.type === 'def' || current.type === 'inlineMath') return;
+
+            // Single-tilde `del` tokens render literally under Folio's
+            // stricter policy, so their delimiters are visible source too.
+            if (current.type === 'del' && !current.raw.startsWith('~~')) {
+                ranges.push([start, start + current.raw.length]);
+                return;
+            }
 
             if (current.type === 'list') {
                 locateChildren(current, start, current.items);
